@@ -14,7 +14,7 @@ int main(int argc, char const *argv[]) {
     auto server =
         make_listener("127.0.0.1", PORT) |
         process_clients(context,
-                        make_request_handler([](Buffer buff) { return buff; }));
+                        broadcast_handler([](Buffer buff) { return buff; }));
     unifex::sync_wait(server);
   } catch (std::exception &e) {
     printf("%s", e.what());

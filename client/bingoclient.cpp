@@ -1,6 +1,7 @@
 // Client side C/C++ program to demonstrate Socket
 // programming
 #include "bingo.hpp"
+#include <iostream>
 int PORT=8089;
 using namespace bingo;
 int main(int argc, char const* argv[])
@@ -10,7 +11,8 @@ int main(int argc, char const* argv[])
     auto newstream=connect(client,{"127.0.0.1",PORT});
     while (true)
     {
-        std::string str("hello from me");
+        std::string str;
+        std::cin>> str;
         Buffer tosend{str.data(),str.length()};
         send(client,tosend);
         std::array<char,1024> arry{0};

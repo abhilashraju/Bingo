@@ -44,33 +44,84 @@ auto process_clients(Context &where, H handler) {
   return handle_clients(where, std::move(handler));
 }
 
-template <typename Handler> struct acceptor {
+template <typename Handler> struct peer_to_peer_handler {
   using Request_Handler = Handler;
   Request_Handler request_handler;
-  acceptor(Request_Handler handler) : request_handler(std::move(handler)) {}
-  auto operator()(auto newsock) const {
+  peer_to_peer_handler(Request_Handler handler)
+      : request_handler(std::move(handler)) {}
+  auto operator()(sock_stream newsock) const {
     auto newclient = unifex::just(new sock_stream(std::move(newsock)));
     auto responder = unifex::then([=](auto newsock) {
-        std::unique_ptr<sock_stream> sock(newsock);
-        try {
-          while (true) {
-            std::vector<char> vec;
-            vec.reserve(1024);
-            Buffer buffer{vec.data(), vec.capacity()};
-            read(*sock, buffer);
-            send(*sock, request_handler(buffer));
-          }
-        } catch (std::exception &e) {
-          printf("%s", e.what());
+      std::unique_ptr<sock_stream> sock(newsock);
+      try {
+        while (true) {
+          std::vector<char> vec;
+          vec.reserve(1024);
+          Buffer buffer{vec.data(), vec.capacity()};
+          read(*sock, buffer);
+          send(*sock, request_handler(buffer));
         }
-      });
+      } catch (std::exception &e) {
+        printf("%s", e.what());
+      }
+    });
     auto session = newclient | responder;
     return session;
   }
 };
-template <typename T> acceptor<T> make_request_handler(T handler) {
-  return acceptor<T>(handler);
+template <typename T>
+inline peer_to_peer_handler<T> make_peer_to_peer_handler(T handler) {
+  return peer_to_peer_handler<T>(handler);
 }
+template <typename Handler> struct broadcast_handler {
+  using Request_Handler = Handler;
+  Request_Handler request_handler;
+  struct ClientList {
+    std::vector<std::unique_ptr<sock_stream>> clients;
+    std::mutex client_mutex;
+    void broadcast(Buffer buffer) {
+      std::lock_guard<std::mutex> guard(client_mutex);
+      for (auto &c : clients) {
+        send(*c, buffer);
+      }
+    }
+    void add_client(sock_stream *client) {
+      std::lock_guard<std::mutex> guard(client_mutex);
+      clients.emplace_back(client);
+    }
+    void remove_client(sock_stream *client) {
+      std::lock_guard<std::mutex> guard(client_mutex);
+      clients.erase(std::remove_if(std::begin(clients), std::end(clients),
+                                   [&](auto &e) { return e.get() == client; }));
+    }
+  };
+  static auto &getClientList() {
+    static ClientList gclient_lists;
+    return gclient_lists;
+  }
+  
+  broadcast_handler(Request_Handler handler)
+      : request_handler(std::move(handler)) {}
+  auto operator()(sock_stream newsock) const {
+    auto newclient = unifex::just(new sock_stream(std::move(newsock)));
+    auto responder = unifex::then([=](auto newsock) {
+      getClientList().add_client(newsock);
+      try {
+        while (true) {
+          std::vector<char> vec;
+          vec.reserve(1024);
+          Buffer buffer{vec.data(), vec.capacity()};
+          read(*newsock, buffer);
+          getClientList().broadcast(request_handler(buffer));
+        }
+      } catch (std::exception &e) {
+        getClientList().remove_client(newsock);
+      }
+    });
+    auto session = newclient | responder;
+    return session;
+  }
+};
 
 inline auto error_to_response(std::exception_ptr err) {
   try {

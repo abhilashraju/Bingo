@@ -7,7 +7,7 @@
 #include <unifex/static_thread_pool.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
-
+#include <sys/select.h>
 namespace bingo {
 
 auto make_listener(auto address, auto port) {
@@ -26,10 +26,20 @@ template <typename Context, typename Handler> struct handle_clients {
     return unifex::then([=](auto l) {
       std::unique_ptr<sock_stream> listener(l);
       unifex::async_scope scope;
+      constexpr int MAXCLIENTS = 100;
+      std::array<int, MAXCLIENTS> clientFd{0};
+      int maxSockFd = listener->fd_;
+      fd_set  allset, rset;
+      FD_ZERO(&allset);
+      FD_SET(listener->fd_, &allset);
       while (true) {
-        auto newsock = accept(*listener);
-        scope.spawn(
-            unifex::on(context.get_scheduler(), handler(std::move(newsock))));
+        rset = allset;
+        int nready = select(maxSockFd + 1, &rset, nullptr, nullptr, nullptr);
+        if (FD_ISSET(listener->fd_, &rset)) {
+          auto newsock = accept(*listener);
+          scope.spawn(
+              unifex::on(context.get_scheduler(), handler(std::move(newsock))));
+        }
       }
       return std::string("Server Started");
     });
@@ -99,7 +109,7 @@ template <typename Handler> struct broadcast_handler {
     static ClientList gclient_lists;
     return gclient_lists;
   }
-  
+
   broadcast_handler(Request_Handler handler)
       : request_handler(std::move(handler)) {}
   auto operator()(sock_stream newsock) const {

@@ -21,19 +21,4 @@ int main(int argc, char const *argv[]) {
   }
 
   return 0;
-
-  // sock_stream listener;
-  // listener.bind({"127.0.0.1",PORT});
-  // listen(listener);
-  // while(true){
-  //     sock_address foriengAddr;
-  //     auto incoming = accept(listener);
-  //     std::vector<char> vec;vec.reserve(1024);
-  //     Buffer buffer{vec.data(),vec.capacity()};
-  //     int bytes = read(incoming,buffer);
-  //     auto v=buffer.buffer();
-  //     send(incoming,buffer);
-  // }
-
-  return 0;
 }

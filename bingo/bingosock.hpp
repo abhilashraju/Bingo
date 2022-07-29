@@ -2,6 +2,7 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <netinet/in.h>
+#include <stdexcept>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,7 +22,7 @@ struct sock_address {
     address.sin_family = AF_INET;
     address.sin_port = htons(port);
     if (int r = inet_pton(AF_INET, addr.data(), &address.sin_addr) <= 0) {
-      throw std::runtime_error(std::string("address error: ")+strerror(r));
+      throw std::runtime_error(std::string("address error: ") + strerror(r));
     }
   }
 };
@@ -31,7 +32,8 @@ struct sock_stream {
   bool listening{false};
   sock_stream() {
     if ((fd_ = ::socket(AF_INET, SOCK_STREAM, 0)) == 0) {
-      throw std::runtime_error(std::string("sock creation error: ")+strerror(errno));
+      throw std::runtime_error(std::string("sock creation error: ") +
+                               strerror(errno));
     }
   }
   sock_stream(int fd, sock_address addr, bool l)
@@ -46,9 +48,9 @@ struct sock_stream {
   }
   sock_stream &bind(sock_address addr) {
     address = addr;
-    if (int r=::bind(fd_, (struct sockaddr *)&address.address, sizeof(addr.address)) <
-        0) {
-      throw std::runtime_error(std::string("bind error: ")+strerror(r));
+    if (int r = ::bind(fd_, (struct sockaddr *)&address.address,
+                       sizeof(addr.address)) < 0) {
+      throw std::runtime_error(std::string("bind error: ") + strerror(r));
     }
     return *this;
   }
@@ -75,7 +77,7 @@ struct sock_stream {
   friend void shutdown(sock_stream &stream) { shutdown(stream.fd_, SHUT_RDWR); }
   friend void listen(sock_stream &stream) {
     if (::listen(stream.fd_, 3) < 0) {
-      throw std::runtime_error(std::string("listen error: ")+strerror(errno));
+      throw std::runtime_error(std::string("listen error: ") + strerror(errno));
     }
   }
   friend void listen(sock_stream &stream, const sock_address &addr) {
@@ -83,8 +85,10 @@ struct sock_stream {
     listen(stream);
   }
   friend void set_blocked(sock_stream &stream) {
-    if (int r=fcntl(stream.fd_, F_SETFL, fcntl(stream.fd_, F_GETFL) | F_LOCK) < 0) {
-      throw std::runtime_error(std::string("block failed error: ")+strerror(r));
+    if (int r = fcntl(stream.fd_, F_SETFL,
+                      fcntl(stream.fd_, F_GETFL) | F_LOCK) < 0) {
+      throw std::runtime_error(std::string("block failed error: ") +
+                               strerror(r));
     }
   }
   friend sock_stream accept(const sock_stream &stream) {
@@ -122,7 +126,8 @@ struct sock_stream {
     if ((newstream.fd_ =
              ::connect(stream.fd_, (struct sockaddr *)&serv_addr.address,
                        sizeof(serv_addr.address))) < 0) {
-      throw std::runtime_error(std::string("connection error: ")+strerror(errno));
+      throw std::runtime_error(std::string("connection error: ") +
+                               strerror(errno));
     }
     set_blocked(newstream);
     return newstream;

@@ -31,7 +31,7 @@ template <typename NewConnHandler, typename ReadHandler> struct Reactor {
           }
           FD_SET(newsock.fd_, &allset);
           auto distance = std::distance(begin(clientFd), iter);
-          if (distance > maxFdIndex) {
+          if (distance >= maxFdIndex) {
             maxFdIndex = distance+1;
           }
           new_conn_handler(std::move(newsock));

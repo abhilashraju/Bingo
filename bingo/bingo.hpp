@@ -1,4 +1,5 @@
 #include "bingosock.hpp"
+#include "reactor.hpp"
 #include <sys/select.h>
 #include <unifex/async_scope.hpp>
 #include <unifex/just.hpp>
@@ -8,7 +9,6 @@
 #include <unifex/static_thread_pool.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
-#include "reactor.hpp"
 namespace bingo {
 
 auto make_listener(auto address, auto port) {
@@ -28,12 +28,10 @@ template <typename Context, typename Handler> struct handle_clients {
       std::unique_ptr<sock_stream> listener(l);
       unifex::async_scope scope;
       Reactor reactor(
-        [&](sock_stream newconnection){
-             scope.spawn(
-              unifex::on(context.get_scheduler(), handler(std::move(newconnection))));
-        },
-        [](int fd){return true;}
-      );
+          [&](sock_stream newconnection) {
+            handler.spawn(scope, context, std::move(newconnection));
+          },
+          [&](int fd) { return handler.handle_read(fd); });
       reactor.run(*listener);
 
       return std::string("Server Started");
@@ -52,9 +50,15 @@ auto process_clients(Context &where, H handler) {
 template <typename Handler> struct peer_to_peer_handler {
   using Request_Handler = Handler;
   Request_Handler request_handler;
+  static constexpr bool broad_casting = false;
   peer_to_peer_handler(Request_Handler handler)
       : request_handler(std::move(handler)) {}
-  auto operator()(sock_stream newsock) const {
+  auto spawn(auto &scope, auto &context, auto newconnection) const {
+    scope.spawn(unifex::on(context.get_scheduler(),
+                           handleConnection(std::move(newconnection))));
+  }
+  auto handle_read(int fd) const { return false; }
+  auto handleConnection(sock_stream newsock) const {
     auto newclient = unifex::just(new sock_stream(std::move(newsock)));
     auto responder = unifex::then([=](auto newsock) {
       std::unique_ptr<sock_stream> sock(newsock);
@@ -81,6 +85,7 @@ inline peer_to_peer_handler<T> make_peer_to_peer_handler(T handler) {
 template <typename Handler> struct broadcast_handler {
   using Request_Handler = Handler;
   Request_Handler request_handler;
+  static constexpr bool broad_casting = true;
   struct ClientList {
     std::vector<std::unique_ptr<sock_stream>> clients;
     std::mutex client_mutex;
@@ -99,6 +104,15 @@ template <typename Handler> struct broadcast_handler {
       clients.erase(std::remove_if(std::begin(clients), std::end(clients),
                                    [&](auto &e) { return e.get() == client; }));
     }
+    std::optional<sock_stream *> find(int fd) {
+      std::lock_guard<std::mutex> guard(client_mutex);
+      auto const& iter = std::find_if(cbegin(clients), cend(clients),
+                                [=](const auto &sock) { return sock->fd_ == fd; });
+      if (iter != cend(clients)) {
+        return std::optional(iter->get());
+      }
+      return std::nullopt;
+    }
   };
   static auto &getClientList() {
     static ClientList gclient_lists;
@@ -107,7 +121,7 @@ template <typename Handler> struct broadcast_handler {
 
   broadcast_handler(Request_Handler handler)
       : request_handler(std::move(handler)) {}
-  auto operator()(sock_stream newsock) const {
+  auto handleConnection(sock_stream newsock) const {
     auto newclient = unifex::just(new sock_stream(std::move(newsock)));
     auto responder = unifex::then([=](auto newsock) {
       getClientList().add_client(newsock);
@@ -125,6 +139,24 @@ template <typename Handler> struct broadcast_handler {
     });
     auto session = newclient | responder;
     return session;
+  }
+  auto spawn(auto &scope, auto &context, auto newsock) const {
+    getClientList().add_client(new sock_stream(std::move(newsock)));
+  }
+  auto handle_read(int fd) const {
+    auto sock = getClientList().find(fd);
+    if (sock) {
+      std::vector<char> vec;
+      vec.reserve(1024);
+      Buffer buffer{vec.data(), vec.capacity()};
+      auto n = read(*sock.value(), buffer);
+      if(n<=0){
+        getClientList().remove_client(sock.value());
+        return false;//socket closed by remote
+      }
+       getClientList().broadcast(request_handler(buffer));
+    }
+    return true;
   }
 };
 

@@ -146,6 +146,10 @@ struct Buffer {
     buff = v.data();
     len = v.capacity();
   }
+  Buffer(std::string &v) {
+    buff = v.data();
+    len = v.length();
+  }
   char *buffer() { return buff; }
   size_t length() { return len; }
 };

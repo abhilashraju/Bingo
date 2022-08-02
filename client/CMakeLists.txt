@@ -35,4 +35,5 @@ add_executable(bingoclient
 target_link_libraries( bingoclient
     PRIVATE
         pthread
+        unifex
 )

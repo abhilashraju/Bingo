@@ -27,7 +27,7 @@ template <typename Context, typename Handler> struct handle_clients {
     return unifex::then([=](auto l) {
       std::unique_ptr<sock_stream> listener(l);
       unifex::async_scope scope;
-      Reactor reactor(
+      ConnectionReactor reactor(
           [&](sock_stream newconnection) {
             handler.spawn(scope, context, std::move(newconnection));
           },
@@ -106,8 +106,9 @@ template <typename Handler> struct broadcast_handler {
     }
     std::optional<sock_stream *> find(int fd) {
       std::lock_guard<std::mutex> guard(client_mutex);
-      auto const& iter = std::find_if(cbegin(clients), cend(clients),
-                                [=](const auto &sock) { return sock->fd_ == fd; });
+      auto const &iter =
+          std::find_if(cbegin(clients), cend(clients),
+                       [=](const auto &sock) { return sock->fd_ == fd; });
       if (iter != cend(clients)) {
         return std::optional(iter->get());
       }
@@ -150,11 +151,11 @@ template <typename Handler> struct broadcast_handler {
       vec.reserve(1024);
       Buffer buffer{vec.data(), vec.capacity()};
       auto n = read(*sock.value(), buffer);
-      if(n<=0){
+      if (n <= 0) {
         getClientList().remove_client(sock.value());
-        return false;//socket closed by remote
+        return false; // socket closed by remote
       }
-       getClientList().broadcast(request_handler(buffer));
+      getClientList().broadcast(request_handler(buffer));
     }
     return true;
   }

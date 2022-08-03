@@ -3,11 +3,12 @@
 #include <functional>
 #include <vector>
 namespace bingo {
-template <typename NewConnHandler, typename ReadHandler> struct Reactor {
+template <typename NewConnHandler, typename ReadHandler>
+struct ConnectionReactor {
   NewConnHandler new_conn_handler;
   ReadHandler read_handler;
   static constexpr int MAXCLIENTS = 100;
-  Reactor(NewConnHandler conn_handler, ReadHandler read_handler)
+  ConnectionReactor(NewConnHandler conn_handler, ReadHandler read_handler)
       : new_conn_handler(std::move(conn_handler)),
         read_handler(std::move(read_handler)) {}
   void run(sock_stream &listener) {
@@ -32,24 +33,45 @@ template <typename NewConnHandler, typename ReadHandler> struct Reactor {
           FD_SET(newsock.fd_, &allset);
           auto distance = std::distance(begin(clientFd), iter);
           if (distance >= maxFdIndex) {
-            maxFdIndex = distance+1;
+            maxFdIndex = distance + 1;
           }
           new_conn_handler(std::move(newsock));
         }
         if (--nready == 0)
           continue; // no more descriptor to handle
       }
-      auto replace=[&](auto fd) {
-            if (fd >= 0 && FD_ISSET(fd, &rset) && nready > 0) {
-              if (!read_handler(fd)) {
-                FD_CLR(fd, &allset);
-                return true;
-              }
-              --nready;
-            }
-            return false;
-          };
-      std::replace_if(begin(clientFd), begin(clientFd)+maxFdIndex,replace,-1);
+      auto replace = [&](auto fd) {
+        if (fd >= 0 && FD_ISSET(fd, &rset) && nready > 0) {
+          if (!read_handler(fd)) {
+            FD_CLR(fd, &allset);
+            return true;
+          }
+          --nready;
+        }
+        return false;
+      };
+      std::replace_if(begin(clientFd), begin(clientFd) + maxFdIndex, replace,
+                      -1);
+    }
+  }
+};
+
+template <typename ReadHandler> struct SocketReactor {
+  int fd_;
+  ReadHandler read_handler;
+  fd_set allset;
+  SocketReactor(sock_stream& s, ReadHandler read_handler)
+      : fd_(s.fd_), read_handler(std::move(read_handler)) {
+    FD_ZERO(&allset);
+    FD_SET(fd_, &allset);
+  }
+  void run() const{
+    fd_set rset=allset;
+    int nready = select(fd_ + 1, &rset, nullptr, nullptr, nullptr);
+    if (FD_ISSET(fd_, &rset)) {
+      if (!read_handler(fd_)) {
+        // FD_CLR(fd_, &allset);
+      }
     }
   }
 };

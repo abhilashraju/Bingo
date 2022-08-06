@@ -28,7 +28,6 @@ template <typename stream> struct async_stream {
     GenericReactor &reactor = GenericReactor::get_reactor();
     reactor.add_handler(self().get_fd(), [&]() {
       int bytes = self().on_read_handler(buffer);
-      std::lock_guard lk(m);
       ready = true;
       cv.notify_one();
       return true;

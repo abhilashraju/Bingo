@@ -78,11 +78,13 @@ struct GenericReactor {
   int maxfd{-1};
   bool notifying{false};
   std::mutex mut;
-  GenericReactor() { FD_ZERO(&allset); }
+  GenericReactor() { FD_ZERO(&allset);  FD_SET(fileno(stdin), &allset);maxfd=fileno(stdin);}
   template <typename Handler> void add_handler(int fd, Handler h) {
     std::lock_guard guard(mut);
     
     FD_SET(fd, &allset);
+   
+  
     if (maxfd < fd)
       maxfd = fd;
     if(notifying){
@@ -96,14 +98,16 @@ struct GenericReactor {
       fd_set rset = allset;
       timeval timeout{2,0};
 
-      int nready = select(maxfd + 1, &rset, nullptr, nullptr, &timeout);
+      int nready = select(maxfd + 1, &rset, nullptr, nullptr, nullptr);
       notifying=true;
-      std::vector<int> toberemoved(maxfd);
+      std::vector<int> toberemoved;
+      toberemoved.reserve(maxfd);
       //notify all clents waitng for read;
       auto iter = std::begin(handlers);
       while (nready > 0 && iter != std::end(handlers)) {
         iter = std::find_if(iter, std::end(handlers), [&](auto &v) {
-          return FD_ISSET(v->get_fd(), &rset);
+           bool set = FD_ISSET(v->get_fd(), &rset);
+           return set;
         });
 
         if (iter != std::end(handlers)) {

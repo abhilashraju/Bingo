@@ -2,6 +2,7 @@
 #include "bingosock.hpp"
 #include <functional>
 #include <vector>
+#include <mutex>
 namespace bingo {
 template <typename NewConnHandler, typename ReadHandler>
 struct ConnectionReactor {
@@ -56,23 +57,82 @@ struct ConnectionReactor {
   }
 };
 
-template <typename ReadHandler> struct SocketReactor {
-  int fd_;
-  ReadHandler read_handler;
+struct GenericReactor {
+
+  struct ReadHandlerBase {
+    virtual int get_fd() const = 0;
+    virtual bool handle_read() const = 0;
+    virtual ~ReadHandlerBase(){};
+  };
+  template <typename Handler> struct ReadHandler : ReadHandlerBase {
+    int fd_{-1};
+    Handler handler;
+    int get_fd() const { return fd_; }
+    bool handle_read() const { return handler(); }
+    ReadHandler(int fd, Handler h) : fd_(fd), handler(std::move(h)) {}
+    ~ReadHandler() {}
+  };
+  std::vector<std::unique_ptr<ReadHandlerBase>> handlers;
+  std::vector<std::unique_ptr<ReadHandlerBase>> pending_handlers;
   fd_set allset;
-  SocketReactor(sock_stream& s, ReadHandler read_handler)
-      : fd_(s.fd_), read_handler(std::move(read_handler)) {
-    FD_ZERO(&allset);
-    FD_SET(fd_, &allset);
-  }
-  void run() const{
-    fd_set rset=allset;
-    int nready = select(fd_ + 1, &rset, nullptr, nullptr, nullptr);
-    if (FD_ISSET(fd_, &rset)) {
-      if (!read_handler(fd_)) {
-        // FD_CLR(fd_, &allset);
-      }
+  int maxfd{-1};
+  bool notifying{false};
+  std::mutex mut;
+  GenericReactor() { FD_ZERO(&allset); }
+  template <typename Handler> void add_handler(int fd, Handler h) {
+    std::lock_guard guard(mut);
+    
+    FD_SET(fd, &allset);
+    if (maxfd < fd)
+      maxfd = fd;
+    if(notifying){
+      pending_handlers.emplace_back(new ReadHandler(fd, std::move(h)));
+      return;
     }
+    handlers.emplace_back(new ReadHandler(fd, std::move(h)));
+  }
+  void run() {
+    while (true) {
+      fd_set rset = allset;
+      timeval timeout{2,0};
+
+      int nready = select(maxfd + 1, &rset, nullptr, nullptr, &timeout);
+      notifying=true;
+      std::vector<int> toberemoved(maxfd);
+      //notify all clents waitng for read;
+      auto iter = std::begin(handlers);
+      while (nready > 0 && iter != std::end(handlers)) {
+        iter = std::find_if(iter, std::end(handlers), [&](auto &v) {
+          return FD_ISSET(v->get_fd(), &rset);
+        });
+
+        if (iter != std::end(handlers)) {
+          if (!iter->get()->handle_read()) {
+            FD_CLR(iter->get()->get_fd(), &allset);
+            toberemoved.push_back(iter->get()->get_fd());
+          }
+          --nready;
+        }
+      }
+      notifying=false;
+      std::lock_guard guard(mut);
+      //clear all eof clients
+      auto search_pred=[&](auto& v){ 
+        return (std::find_if(begin(toberemoved),end(toberemoved),[&](auto& id){return v->get_fd()==id;}) != end(toberemoved));
+      };
+
+    
+      handlers.erase(std::remove_if(begin(handlers),end(handlers),search_pred),handlers.end());
+      //add new pending handlers to be added
+      std::move(begin(pending_handlers),end(pending_handlers),std::back_inserter(handlers));
+      pending_handlers.clear();
+
+
+    }
+  }
+  static GenericReactor& get_reactor(){
+    static GenericReactor reactor;
+    return reactor;
   }
 };
 } // namespace bingo

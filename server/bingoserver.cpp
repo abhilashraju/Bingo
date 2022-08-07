@@ -1,4 +1,4 @@
-// Server side C/C++ program to demonstrate Socket
+// Server side C/C++ program to demonstrate unifex based chat server
 // programming
 #include "bingo.hpp"
 #define PORT 8089

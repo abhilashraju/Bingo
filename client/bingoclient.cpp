@@ -13,12 +13,12 @@ int PORT = 8089;
 using namespace bingo;
 int main(int argc, char const *argv[]) {
 
-  auto username = [&](){
+  auto Greeting = [&](){
     if(argc>1){ return std::string(argv[1]);}
     std::stringstream strstream;
     strstream << std::this_thread::get_id();
     return strstream.str();
-  }();
+  }()+" Says: ";
   io_context context;
   unifex::single_thread_context io_thread;
   unifex::single_thread_context net_thread;
@@ -33,7 +33,7 @@ int main(int argc, char const *argv[]) {
   };
   
   auto wait_for_user=[=](){
-      return async_io().sync_read( [=](auto data) {  return username + " says: " + data.buffer(); });
+      return async_io().sync_read( [=](auto data) {  return Greeting + data.buffer(); });
   };
   auto process_user_data = [&](auto data) {
       send(client.sock,Buffer(data));

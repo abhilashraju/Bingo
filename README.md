@@ -123,3 +123,9 @@ int main(int argc, char const *argv[]) {
 Above example shows a concurrent socket client application. One dedicated thread for socket communication and another for User IO. You can run multiple instance of the client application to see how it handles concurrency effectievely. Depending on the version of the server it connects to the same application behaves just like an echo client or a chat client. 
 
 You can enhance the client application further into an http client library like curl, an MQTT broker client or any other TCP client application.
+
+
+<center> Fig Client and Server Commnad Line Application </center>
+
+![Chat](/docs/images/example1.PNG)
+

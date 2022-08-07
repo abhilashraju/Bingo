@@ -1,11 +1,10 @@
-// Client side C/C++ program to demonstrate Socket
+// Client side C/C++ program to demonstrate Sender/Reciever Based Sockets
 // programming
 #include "async_stream.hpp"
 #include "io_context.hpp"
 #include "unifex/then.hpp"
 #include "unifex/repeat_effect_until.hpp"
 #include "unifex/single_thread_context.hpp"
-#include "unifex/typed_via.hpp"
 #include <iostream>
 #include <thread>
 #include <sstream>

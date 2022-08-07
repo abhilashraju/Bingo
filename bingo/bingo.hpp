@@ -1,3 +1,4 @@
+#pragma once
 #include "bingosock.hpp"
 #include "reactor.hpp"
 #include <sys/select.h>
@@ -38,12 +39,12 @@ template <typename Context, typename Handler> struct handle_clients {
     });
   }
   template <typename Sender, typename C, typename H>
-  friend auto operator|(Sender &&sender, handle_clients<C, H> &&clihandler) {
+  inline friend auto operator|(Sender &&sender, handle_clients<C, H> &&clihandler) {
     return sender | clihandler.get();
   }
 };
 template <typename Context, typename H>
-auto process_clients(Context &where, H handler) {
+inline auto process_clients(Context &where, H handler) {
   return handle_clients(where, std::move(handler));
 }
 

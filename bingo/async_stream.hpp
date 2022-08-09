@@ -26,14 +26,26 @@ template <typename stream> struct async_stream {
     std::array<char, 1024> arry{0};
     Buffer buffer{arry.data(), arry.size()};
     GenericReactor &reactor = GenericReactor::get_reactor();
+    std::exception_ptr eptr;
     reactor.add_handler(self().get_fd(), [&]() {
       int bytes = self().on_read_handler(buffer);
+      try {
+        if (bytes <= 0) {
+          throw std::runtime_error(std::string("socket error: ") +
+                                   strerror(errno));
+        }
+      } catch (...) {
+        eptr = std::current_exception(); // capture
+      }
       ready = true;
       cv.notify_one();
-      return true;
+      return bytes > 0;
     });
     std::unique_lock lk(m);
     cv.wait(lk, [&] { return ready; });
+    if (eptr) {
+      std::rethrow_exception(eptr);
+    }
     return handler(buffer);
   }
 };

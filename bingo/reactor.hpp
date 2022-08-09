@@ -1,8 +1,8 @@
 #pragma once
 #include "bingosock.hpp"
 #include <functional>
-#include <vector>
 #include <mutex>
+#include <vector>
 namespace bingo {
 template <typename NewConnHandler, typename ReadHandler>
 struct ConnectionReactor {
@@ -78,36 +78,46 @@ struct GenericReactor {
   int maxfd{-1};
   bool notifying{false};
   std::mutex mut;
-  GenericReactor() { FD_ZERO(&allset);  FD_SET(fileno(stdin), &allset);maxfd=fileno(stdin);}
+  GenericReactor() {
+    FD_ZERO(&allset);
+    FD_SET(fileno(stdin), &allset);
+    maxfd = fileno(stdin);
+  }
   template <typename Handler> void add_handler(int fd, Handler h) {
     std::lock_guard guard(mut);
-    
+
     FD_SET(fd, &allset);
-   
-  
+
     if (maxfd < fd)
       maxfd = fd;
-    if(notifying){
-      pending_handlers.emplace_back(new ReadHandler(fd, std::move(h)));
+    if (notifying) {
+      add_if_not_present(pending_handlers, fd, std::move(h));
       return;
     }
-    handlers.emplace_back(new ReadHandler(fd, std::move(h)));
+    add_if_not_present(handlers, fd, std::move(h));
+  }
+  template <typename Handler>
+  void add_if_not_present(auto &range, int fd, Handler h) {
+    if (std::find_if(std::begin(range), std::end(range),
+                     [&](auto &v) { return v->get_fd() == fd; }) == std::end(range)) {
+      range.emplace_back(new ReadHandler(fd, std::move(h)));
+    }
   }
   void run() {
     while (true) {
       fd_set rset = allset;
-      timeval timeout{2,0};
+      timeval timeout{2, 0};
 
       int nready = select(maxfd + 1, &rset, nullptr, nullptr, nullptr);
-      notifying=true;
+      notifying = true;
       std::vector<int> toberemoved;
       toberemoved.reserve(maxfd);
-      //notify all clents waitng for read;
+      // notify all clents waitng for read;
       auto iter = std::begin(handlers);
       while (nready > 0 && iter != std::end(handlers)) {
         iter = std::find_if(iter, std::end(handlers), [&](auto &v) {
-           bool set = FD_ISSET(v->get_fd(), &rset);
-           return set;
+          bool set = FD_ISSET(v->get_fd(), &rset);
+          return set;
         });
 
         if (iter != std::end(handlers)) {
@@ -118,23 +128,25 @@ struct GenericReactor {
           --nready;
         }
       }
-      notifying=false;
+      notifying = false;
       std::lock_guard guard(mut);
-      //clear all eof clients
-      auto search_pred=[&](auto& v){ 
-        return (std::find_if(begin(toberemoved),end(toberemoved),[&](auto& id){return v->get_fd()==id;}) != end(toberemoved));
+      // clear all eof clients
+      auto search_pred = [&](auto &v) {
+        return (std::find_if(begin(toberemoved), end(toberemoved),
+                             [&](auto &id) { return v->get_fd() == id; }) !=
+                end(toberemoved));
       };
 
-    
-      handlers.erase(std::remove_if(begin(handlers),end(handlers),search_pred),handlers.end());
-      //add new pending handlers to be added
-      std::move(begin(pending_handlers),end(pending_handlers),std::back_inserter(handlers));
+      handlers.erase(
+          std::remove_if(begin(handlers), end(handlers), search_pred),
+          handlers.end());
+      // add new pending handlers to be added
+      std::move(begin(pending_handlers), end(pending_handlers),
+                std::back_inserter(handlers));
       pending_handlers.clear();
-
-
     }
   }
-  static GenericReactor& get_reactor(){
+  static GenericReactor &get_reactor() {
     static GenericReactor reactor;
     return reactor;
   }

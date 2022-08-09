@@ -63,7 +63,7 @@ int main(int argc, char const *argv[]) {
 ```
 Above is an example of broad casting server implementation. This time the server broad cast the message to all connected clients. The above server can be enchanced to write a wide range of application from simple chat service to more complicated queing/messaging protocols such as MQTT or AMQP etc.
 
-### Example For Simple Client Application
+### Example For Client Application
 
 ```
 #include "async_stream.hpp"

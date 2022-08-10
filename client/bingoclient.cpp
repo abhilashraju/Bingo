@@ -5,8 +5,9 @@
 #include "unifex/let_error.hpp"
 #include "unifex/repeat_effect_until.hpp"
 #include "unifex/single_thread_context.hpp"
-#include "unifex/stop_when.hpp"
 #include "unifex/then.hpp"
+#include "unifex/when_all.hpp"
+
 #include <iostream>
 #include <sstream>
 #include <thread>
@@ -57,12 +58,11 @@ int main(int argc, char const *argv[]) {
               unifex::then(process_remote_data) |
               unifex::repeat_effect_until([&]() { return status == "error"; });
 
-  context.spawn(std::move(work));
-
   auto ui = unifex::schedule(io_thread.get_scheduler()) |
             unifex::then(wait_for_user) | unifex::then(process_user_data) |
             unifex::repeat_effect_until([&]() { return status == "error"; });
 
+  context.spawn(std::move(work));
   context.spawn(std::move(ui));
   context.run();
   return 0;

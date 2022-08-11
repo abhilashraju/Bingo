@@ -16,8 +16,8 @@ int main(int argc, char const *argv[]) {
       unifex::sync_wait(
           make_listener("127.0.0.1", PORT) |
           process_clients(context,
-                          broadcast_handler([](Buffer buff) { return buff; })));
-                          // peer_to_peer_handler([](Buffer buff) { return buff; })));
+                          // broadcast_handler([](Buffer buff) { return buff; })));
+                          peer_to_peer_handler([](Buffer buff) { return buff; })));
     
 
    

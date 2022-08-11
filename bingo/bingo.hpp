@@ -68,7 +68,10 @@ template <typename Handler> struct peer_to_peer_handler {
           std::vector<char> vec;
           vec.reserve(1024);
           Buffer buffer{vec.data(), vec.capacity()};
-          read(*sock, buffer);
+          int n=read(*sock, buffer);
+          if(n==0){
+            throw std::runtime_error(std::string("EOF"));
+          }
           send(*sock, request_handler(buffer));
         }
       } catch (std::exception &e) {
@@ -132,7 +135,10 @@ template <typename Handler> struct broadcast_handler {
           std::vector<char> vec;
           vec.reserve(1024);
           Buffer buffer{vec.data(), vec.capacity()};
-          read(*newsock, buffer);
+          int n=read(*newsock, buffer);
+          if(n==0){
+            throw std::runtime_error(std::string("EOF"));
+          }
           getClientList().broadcast(request_handler(buffer));
         }
       } catch (std::exception &e) {

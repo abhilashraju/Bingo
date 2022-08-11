@@ -34,7 +34,7 @@ template <typename stream> struct async_stream {
           throw std::runtime_error(std::string("socket error: ") +
                                    strerror(errno));
         }
-      } catch (...) {
+      } catch (const std::exception &e) {
         eptr = std::current_exception(); // capture
       }
       ready = true;
@@ -60,8 +60,11 @@ struct async_sock : async_stream<async_sock> {
 struct async_io : async_stream<async_io> {
   int get_fd() { return fileno(stdin); }
   int on_read_handler(Buffer buff) {
-    fgets(buff.buffer(), buff.length(), stdin);
-    return buff.length();
+    if(fgets(buff.buffer(), buff.length(), stdin)!=nullptr){
+        return buff.length();
+    }
+    return 0;
+        
   }
 };
 } // namespace bingo

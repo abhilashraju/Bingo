@@ -67,6 +67,7 @@ template <typename Handler> struct peer_to_peer_handler {
         while (true) {
           std::vector<char> vec;
           vec.reserve(1024);
+          std::fill(vec.data(), vec.data()+vec.capacity(),'\0');
           Buffer buffer{vec.data(), vec.capacity()};
           int n=read(*sock, buffer);
           if(n==0){
@@ -134,6 +135,7 @@ template <typename Handler> struct broadcast_handler {
         while (true) {
           std::vector<char> vec;
           vec.reserve(1024);
+          std::fill(vec.data(), vec.data()+vec.capacity(),'\0');
           Buffer buffer{vec.data(), vec.capacity()};
           int n=read(*newsock, buffer);
           if(n==0){
@@ -156,6 +158,7 @@ template <typename Handler> struct broadcast_handler {
     if (sock) {
       std::vector<char> vec;
       vec.reserve(1024);
+      std::fill(vec.data(), vec.data()+vec.capacity(),'\0');
       Buffer buffer{vec.data(), vec.capacity()};
       auto n = read(*sock.value(), buffer);
       if (n <= 0) {

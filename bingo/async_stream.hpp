@@ -13,9 +13,9 @@ template <typename stream> struct async_stream {
     GenericReactor &reactor = GenericReactor::get_reactor();
     reactor.add_handler(self().get_fd(), [&]() {
       std::array<char, 1024> arry{0};
-      Buffer buffer{arry.data(), arry.size()};
-      int bytes = self().on_read_handler(buffer);
-      handler(buffer);
+      buffer buf{arry.data(), arry.size()};
+      int bytes = self().on_read_handler(buf);
+      handler(buf);
       return true;
     });
   }
@@ -24,11 +24,11 @@ template <typename stream> struct async_stream {
     std::condition_variable cv;
     bool ready = false;
     std::array<char, 1024> arry{0};
-    Buffer buffer{arry.data(), arry.size()};
+    buffer buf{arry.data(), arry.size()};
     GenericReactor &reactor = GenericReactor::get_reactor();
     std::exception_ptr eptr;
     reactor.add_handler(self().get_fd(), [&]() {
-      int bytes = self().on_read_handler(buffer);
+      int bytes = self().on_read_handler(buf);
       try {
         if (bytes <= 0) {
           throw std::runtime_error(std::string("socket error: ") +
@@ -46,7 +46,7 @@ template <typename stream> struct async_stream {
     if (eptr) {
       std::rethrow_exception(eptr);
     }
-    return handler(buffer);
+    return handler(buf);
   }
 };
 
@@ -55,12 +55,12 @@ struct async_sock : async_stream<async_sock> {
 
   int get_fd() { return sock.fd_; }
 
-  int on_read_handler(Buffer buff) { return read(sock, buff); }
+  int on_read_handler(buffer buff) { return read(sock, buff); }
 };
 struct async_io : async_stream<async_io> {
   int get_fd() { return fileno(stdin); }
-  int on_read_handler(Buffer buff) {
-    if(fgets(buff.buffer(), buff.length(), stdin)!=nullptr){
+  int on_read_handler(buffer buff) {
+    if(fgets(buff.data(), buff.length(), stdin)!=nullptr){
         return buff.length();
     }
     return 0;

@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <utility>
 #include <vector>
+#include <buffer.hpp>
 namespace bingo {
 struct sock_address {
   struct sockaddr_in address {
@@ -106,7 +107,7 @@ struct sock_stream {
   }
   template <typename Buffer>
   friend int read(const sock_stream &stream, Buffer buff) {
-    int r = ::read(stream.fd_, buff.buffer(), buff.length());
+    int r = ::read(stream.fd_, buff.data(), buff.length());
     if (r < 0) {
       throw std::runtime_error(strerror(r));
     }
@@ -114,7 +115,7 @@ struct sock_stream {
   }
   template <typename Buffer>
   friend int send(const sock_stream &stream, Buffer buff) {
-    int r = ::send(stream.fd_, buff.buffer(), buff.length(), MSG_NOSIGNAL);
+    int r = ::send(stream.fd_, buff.data(), buff.length(), MSG_NOSIGNAL);
     if (r < 0) {
       throw std::runtime_error(strerror(r));
     }
@@ -134,23 +135,4 @@ struct sock_stream {
   }
 };
 
-struct Buffer {
-  char *buff;
-  size_t len;
-  Buffer(char *p, size_t len) : buff(p), len(len) {}
-  template <size_t size> Buffer(std::array<char, size> &arry) {
-    buff = arry.data();
-    len = arry.size();
-  }
-  Buffer(std::vector<char> &v) {
-    buff = v.data();
-    len = v.capacity();
-  }
-  Buffer(std::string &v) {
-    buff = v.data();
-    len = v.length();
-  }
-  char *buffer() { return buff; }
-  size_t length() { return len; }
-};
 } // namespace bingo

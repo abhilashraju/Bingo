@@ -10,6 +10,7 @@
 #include <unifex/static_thread_pool.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
+#include "buffer.hpp"
 namespace bingo {
 
 auto make_listener(auto address, auto port) {
@@ -68,12 +69,12 @@ template <typename Handler> struct peer_to_peer_handler {
           std::vector<char> vec;
           vec.reserve(1024);
           std::fill(vec.data(), vec.data()+vec.capacity(),'\0');
-          Buffer buffer{vec.data(), vec.capacity()};
-          int n=read(*sock, buffer);
+          buffer buf{vec.data(), vec.capacity()};
+          int n=read(*sock, buf);
           if(n==0){
             throw std::runtime_error(std::string("EOF"));
           }
-          send(*sock, request_handler(buffer));
+          send(*sock, request_handler(buf));
         }
       } catch (std::exception &e) {
         printf("%s", e.what());
@@ -94,10 +95,10 @@ template <typename Handler> struct broadcast_handler {
   struct ClientList {
     std::vector<std::unique_ptr<sock_stream>> clients;
     std::mutex client_mutex;
-    void broadcast(Buffer buffer) {
+    void broadcast(buffer buf) {
       std::lock_guard<std::mutex> guard(client_mutex);
       for (auto &c : clients) {
-        send(*c, buffer);
+        send(*c, buf);
       }
     }
     void add_client(sock_stream *client) {
@@ -136,12 +137,12 @@ template <typename Handler> struct broadcast_handler {
           std::vector<char> vec;
           vec.reserve(1024);
           std::fill(vec.data(), vec.data()+vec.capacity(),'\0');
-          Buffer buffer{vec.data(), vec.capacity()};
-          int n=read(*newsock, buffer);
+          buffer buf{vec.data(), vec.capacity()};
+          int n=read(*newsock, buf);
           if(n==0){
             throw std::runtime_error(std::string("EOF"));
           }
-          getClientList().broadcast(request_handler(buffer));
+          getClientList().broadcast(request_handler(buf));
         }
       } catch (std::exception &e) {
         getClientList().remove_client(newsock);
@@ -159,13 +160,13 @@ template <typename Handler> struct broadcast_handler {
       std::vector<char> vec;
       vec.reserve(1024);
       std::fill(vec.data(), vec.data()+vec.capacity(),'\0');
-      Buffer buffer{vec.data(), vec.capacity()};
-      auto n = read(*sock.value(), buffer);
+      buffer buf{vec.data(), vec.capacity()};
+      auto n = read(*sock.value(), buf);
       if (n <= 0) {
         getClientList().remove_client(sock.value());
         return false; // socket closed by remote
       }
-      getClientList().broadcast(request_handler(buffer));
+      getClientList().broadcast(request_handler(buf));
     }
     return true;
   }
@@ -190,6 +191,6 @@ template <typename Func> struct upon_error {
   }
 };
 struct EchoHandler {
-  Buffer operator()(Buffer buff) const { return buff; }
+  buffer operator()(buffer buff) const { return buff; }
 };
 } // namespace bingo

@@ -33,7 +33,7 @@ int main(int argc, char const *argv[]) {
   auto wait_for_remote = [&]() {
     try {
       return client.sync_read(
-          [](auto data) { return std::string(data.buffer()); });
+          [](auto data) { return std::string(data.data()); });
     } catch (std::exception e) {
       status = "error";
       return std::string(e.what());
@@ -44,7 +44,7 @@ int main(int argc, char const *argv[]) {
   auto wait_for_user = [&]() {
     try {
       return async_io().sync_read(
-          [=](auto data) { return Greeting + data.buffer(); });
+          [=](auto data) { return Greeting + data.data(); });
     } catch (std::exception e) {
       status = "error";
       return std::string();
@@ -52,7 +52,7 @@ int main(int argc, char const *argv[]) {
   };
   auto process_user_data = [&](auto data) {
     if(data!=std::string()){
-       send(client.sock, Buffer(data));
+       send(client.sock, buffer(data));
        return;
     }
   };

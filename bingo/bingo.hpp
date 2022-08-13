@@ -95,7 +95,7 @@ template <typename Handler> struct broadcast_handler {
   struct ClientList {
     std::vector<std::unique_ptr<sock_stream>> clients;
     std::mutex client_mutex;
-    void broadcast(buffer buf) {
+    void broadcast(auto buf) {
       std::lock_guard<std::mutex> guard(client_mutex);
       for (auto &c : clients) {
         send(*c, buf);
@@ -128,29 +128,7 @@ template <typename Handler> struct broadcast_handler {
 
   broadcast_handler(Request_Handler handler)
       : request_handler(std::move(handler)) {}
-  auto handleConnection(sock_stream newsock) const {
-    auto newclient = unifex::just(new sock_stream(std::move(newsock)));
-    auto responder = unifex::then([=](auto newsock) {
-      getClientList().add_client(newsock);
-      try {
-        while (true) {
-          std::vector<char> vec;
-          vec.reserve(1024);
-          std::fill(vec.data(), vec.data()+vec.capacity(),'\0');
-          buffer buf{vec.data(), vec.capacity()};
-          int n=read(*newsock, buf);
-          if(n==0){
-            throw std::runtime_error(std::string("EOF"));
-          }
-          getClientList().broadcast(request_handler(buf));
-        }
-      } catch (std::exception &e) {
-        getClientList().remove_client(newsock);
-      }
-    });
-    auto session = newclient | responder;
-    return session;
-  }
+  
   auto spawn(auto &scope, auto &context, auto newsock) const {
     getClientList().add_client(new sock_stream(std::move(newsock)));
   }
@@ -158,9 +136,7 @@ template <typename Handler> struct broadcast_handler {
     auto sock = getClientList().find(fd);
     if (sock) {
       std::vector<char> vec;
-      vec.reserve(1024);
-      std::fill(vec.data(), vec.data()+vec.capacity(),'\0');
-      buffer buf{vec.data(), vec.capacity()};
+      vector_buffer buf(vec);
       auto n = read(*sock.value(), buf);
       if (n <= 0) {
         getClientList().remove_client(sock.value());

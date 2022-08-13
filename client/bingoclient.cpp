@@ -51,9 +51,9 @@ int main(int argc, char const *argv[]) {
     }
   };
   auto process_user_data = [&](auto data) {
-    if(data!=std::string()){
-       send(client.sock, buffer(data));
-       return;
+    if (data != std::string()) {
+      send(client.sock, string_buffer(data));
+      return;
     }
   };
 
@@ -63,8 +63,7 @@ int main(int argc, char const *argv[]) {
               unifex::repeat_effect_until([&]() { return status == "error"; });
 
   auto ui = unifex::schedule(io_thread.get_scheduler()) |
-            unifex::then(wait_for_user) | 
-            unifex::then(process_user_data) |
+            unifex::then(wait_for_user) | unifex::then(process_user_data) |
             unifex::repeat_effect_until([&]() { return status == "error"; });
 
   context.spawn(std::move(work));

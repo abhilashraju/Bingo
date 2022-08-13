@@ -12,8 +12,8 @@ template <typename stream> struct async_stream {
 
     GenericReactor &reactor = GenericReactor::get_reactor();
     reactor.add_handler(self().get_fd(), [&]() {
-      std::array<char, 1024> arry{0};
-      buffer buf{arry.data(), arry.size()};
+      std::vector<char> v;
+      vector_buffer buf{v};
       int bytes = self().on_read_handler(buf);
       handler(buf);
       return true;
@@ -23,8 +23,8 @@ template <typename stream> struct async_stream {
     std::mutex m;
     std::condition_variable cv;
     bool ready = false;
-    std::array<char, 1024> arry{0};
-    buffer buf{arry.data(), arry.size()};
+    std::vector<char> v;
+    vector_buffer buf{v};
     GenericReactor &reactor = GenericReactor::get_reactor();
     std::exception_ptr eptr;
     reactor.add_handler(self().get_fd(), [&]() {
@@ -55,12 +55,13 @@ struct async_sock : async_stream<async_sock> {
 
   int get_fd() { return sock.fd_; }
 
-  int on_read_handler(buffer buff) { return read(sock, buff); }
+  int on_read_handler(auto& buff) { return read(sock, buff); }
 };
 struct async_io : async_stream<async_io> {
   int get_fd() { return fileno(stdin); }
-  int on_read_handler(buffer buff) {
-    if(fgets(buff.data(), buff.length(), stdin)!=nullptr){
+  int on_read_handler(auto& buff) {
+    constexpr size_t MAX=1024;
+    if(fgets(buff.prepare(MAX), MAX, stdin)!=nullptr){
         return buff.length();
     }
     return 0;

@@ -105,17 +105,28 @@ struct sock_stream {
     set_blocked(new_socket);
     return new_socket;
   }
+
   template <typename Buffer>
-  friend int read(const sock_stream &stream, Buffer buff) {
-    int r = ::read(stream.fd_, buff.data(), buff.length());
-    if (r < 0) {
-      throw std::runtime_error(strerror(r));
+  friend int read(const sock_stream &stream, Buffer& buff) {
+    constexpr int MAXSIZE=1024;
+    auto read=0;
+    while(true){
+       int r = ::read(stream.fd_, buff.prepare(MAXSIZE), MAXSIZE);
+       if (r < 0) {
+          if(errno==EINTR) continue;
+          throw std::runtime_error(strerror(r));
+       }
+       read+=r;
+       buff.commit(r);
+       if(r<MAXSIZE){
+        break;
+       }
     }
-    return r;
+    return read;
   }
   template <typename Buffer>
   friend int send(const sock_stream &stream, Buffer buff) {
-    int r = ::send(stream.fd_, buff.data(), buff.length(), MSG_NOSIGNAL);
+    int r = ::send(stream.fd_, buff.data(), buff.read_length(), MSG_NOSIGNAL);
     if (r < 0) {
       throw std::runtime_error(strerror(r));
     }

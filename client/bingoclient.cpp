@@ -14,6 +14,7 @@
 int PORT = 8089;
 
 using namespace bingo;
+enum class _state { running, error };
 int main(int argc, char const *argv[]) {
 
   auto Greeting = [&]() {
@@ -29,26 +30,30 @@ int main(int argc, char const *argv[]) {
   unifex::single_thread_context net_thread;
   async_sock client;
   connect(client.sock, {"127.0.0.1", PORT});
-  std::string status = "running";
-  auto wait_for_remote = [&]() {
+
+  std::atomic<_state> status{_state::running};
+  auto secure_handler = [&](auto handle) {
     try {
-      return client.sync_read(
-          [](auto data) { return std::string(data.data()); });
-    } catch (std::exception e) {
-      status = "error";
+      return handle();
+    } catch (std::exception &e) {
+      status.exchange(_state::error);
+      context.request_stop();
       return std::string(e.what());
     }
+  };
+  auto wait_for_remote = [&]() {
+    return secure_handler([&](){
+      return client.sync_read(
+          [](auto data) { return std::string(data.data()); });
+    });
   };
   auto process_remote_data = [](auto data) { std::cout << data; };
 
   auto wait_for_user = [&]() {
-    try {
-      return async_io().sync_read(
+    return secure_handler([&](){
+         return async_io().sync_read(
           [=](auto data) { return Greeting + data.data(); });
-    } catch (std::exception e) {
-      status = "error";
-      return std::string();
-    }
+    });
   };
   auto process_user_data = [&](auto data) {
     if (data != std::string()) {
@@ -60,11 +65,13 @@ int main(int argc, char const *argv[]) {
   auto work = unifex::schedule(net_thread.get_scheduler()) |
               unifex::then(wait_for_remote) |
               unifex::then(process_remote_data) |
-              unifex::repeat_effect_until([&]() { return status == "error"; });
+              unifex::repeat_effect_until(
+                  [&]() { return status.load() == _state::error; });
 
   auto ui = unifex::schedule(io_thread.get_scheduler()) |
             unifex::then(wait_for_user) | unifex::then(process_user_data) |
-            unifex::repeat_effect_until([&]() { return status == "error"; });
+            unifex::repeat_effect_until(
+                [&]() { return status.load() == _state::error; });
 
   context.spawn(std::move(work));
   context.spawn(std::move(ui));

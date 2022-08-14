@@ -3,6 +3,7 @@
 #include <functional>
 #include <mutex>
 #include <vector>
+#include <unifex/inplace_stop_token.hpp>
 namespace bingo {
 template <typename NewConnHandler, typename ReadHandler>
 struct ConnectionReactor {
@@ -103,12 +104,14 @@ struct GenericReactor {
       range.emplace_back(new ReadHandler(fd, std::move(h)));
     }
   }
-  void run() {
-    while (true) {
+  void run(unifex::inplace_stop_token stoptoken) {
+    while (!stoptoken.stop_requested()) {
       fd_set rset = allset;
       timeval timeout{2, 0};
 
-      int nready = select(maxfd + 1, &rset, nullptr, nullptr, nullptr);
+      int nready = select(maxfd + 1, &rset, nullptr, nullptr, &timeout);
+      if (nready==0) continue;
+      
       notifying = true;
       std::vector<int> toberemoved;
       toberemoved.reserve(maxfd);

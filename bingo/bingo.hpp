@@ -67,9 +67,7 @@ template <typename Handler> struct peer_to_peer_handler {
       try {
         while (true) {
           std::vector<char> vec;
-          vec.reserve(1024);
-          std::fill(vec.data(), vec.data()+vec.capacity(),'\0');
-          buffer buf{vec.data(), vec.capacity()};
+          vector_buffer buf(vec);
           int n=read(*sock, buf);
           if(n==0){
             throw std::runtime_error(std::string("EOF"));

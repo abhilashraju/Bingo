@@ -21,7 +21,7 @@ int main(int argc, char const *argv[]) {
       unifex::sync_wait(
           make_listener("127.0.0.1", PORT) |
           process_clients(context,
-                          peer_to_peer_handler([](Buffer buff) { return buff; })));
+                          peer_to_peer_handler([](auto buff) { return buff; })));
     
 
    
@@ -52,7 +52,7 @@ int main(int argc, char const *argv[]) {
       unifex::sync_wait(
           make_listener("127.0.0.1", PORT) |
           process_clients(context,
-                          broadcast_handler([](Buffer buff) { return buff; })));
+                          broadcast_handler([](auto buff) { return buff; })));
                  
   } catch (std::exception &e) {
     printf("%s", e.what());
@@ -66,6 +66,7 @@ Above is an example of broad casting server implementation. This time the server
 ### Example For Client Application
 
 ```
+using namespace bingo;
 int main(int argc, char const *argv[]) {
 
   auto Greeting = [&]() {
@@ -85,7 +86,7 @@ int main(int argc, char const *argv[]) {
   auto wait_for_remote = [&]() {
     try {
       return client.sync_read(
-          [](auto data) { return std::string(data.buffer()); });
+          [](auto data) { return std::string(data.data()); });
     } catch (std::exception e) {
       status = "error";
       return std::string(e.what());
@@ -93,15 +94,19 @@ int main(int argc, char const *argv[]) {
   };
   auto process_remote_data = [](auto data) { std::cout << data; };
 
-  auto wait_for_user = [=]() {
-    return async_io().sync_read(
-        [=](auto data) { return Greeting + data.buffer(); });
-  };
-  auto process_user_data = [&](auto data) {
+  auto wait_for_user = [&]() {
     try {
-      send(client.sock, Buffer(data));
+      return async_io().sync_read(
+          [=](auto data) { return Greeting + data.data(); });
     } catch (std::exception e) {
       status = "error";
+      return std::string();
+    }
+  };
+  auto process_user_data = [&](auto data) {
+    if (data != std::string()) {
+      send(client.sock, string_buffer(data));
+      return;
     }
   };
 

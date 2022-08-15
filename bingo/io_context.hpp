@@ -15,6 +15,9 @@ struct io_context{
   void run(){
     GenericReactor::get_reactor().run(stop_src.get_token());
   }
+  auto get_token(){
+    return stop_src.get_token();
+  }
   auto request_stop(){
     return stop_src.request_stop();
   }

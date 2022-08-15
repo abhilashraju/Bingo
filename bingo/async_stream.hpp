@@ -19,12 +19,11 @@ template <typename stream> struct async_stream {
       return true;
     });
   }
-  template <typename Handler> auto sync_read(Handler handler) {
+  template <typename Handler> auto sync_read(auto& buf,Handler handler) {
     std::mutex m;
     std::condition_variable cv;
     bool ready = false;
-    std::vector<char> v;
-    vector_buffer buf{v};
+ 
     GenericReactor &reactor = GenericReactor::get_reactor();
     std::exception_ptr eptr;
     reactor.add_handler(self().get_fd(), [&]() {
@@ -46,7 +45,7 @@ template <typename stream> struct async_stream {
     if (eptr) {
       std::rethrow_exception(eptr);
     }
-    return handler(buf);
+    return handler();
   }
 };
 
@@ -61,8 +60,9 @@ struct async_io : async_stream<async_io> {
   int get_fd() { return fileno(stdin); }
   int on_read_handler(auto& buff) {
     constexpr size_t MAX=1024;
-    if(fgets(buff.prepare(MAX), MAX, stdin)!=nullptr){
-        return buff.length();
+    if(char* data; (data=fgets(buff.prepare(MAX), MAX, stdin))!=nullptr){
+         buff.commit(strlen(data));
+        return buff.read_length();
     }
     return 0;
         

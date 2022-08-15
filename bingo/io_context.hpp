@@ -12,6 +12,11 @@ struct io_context{
   void spawn(work&& w){
      scope.spawn(unifex::on(main_thread, std::forward<work>(w)));
   }
+  template<typename... Senders>
+  void spawn_all(Senders... senders){
+    
+    (scope.spawn(unifex::on(main_thread, std::forward<Senders>(senders))),...);
+  }
   void run(){
     GenericReactor::get_reactor().run(stop_src.get_token());
   }

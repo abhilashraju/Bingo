@@ -1,5 +1,6 @@
 #pragma once
 #include "bingosock.hpp"
+#include "buffer.hpp"
 #include "reactor.hpp"
 #include <sys/select.h>
 #include <unifex/async_scope.hpp>
@@ -10,7 +11,6 @@
 #include <unifex/static_thread_pool.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
-#include "buffer.hpp"
 namespace bingo {
 
 auto make_listener(auto address, auto port) {
@@ -40,7 +40,8 @@ template <typename Context, typename Handler> struct handle_clients {
     });
   }
   template <typename Sender, typename C, typename H>
-  inline friend auto operator|(Sender &&sender, handle_clients<C, H> &&clihandler) {
+  inline friend auto operator|(Sender &&sender,
+                               handle_clients<C, H> &&clihandler) {
     return sender | clihandler.get();
   }
 };
@@ -68,8 +69,8 @@ template <typename Handler> struct peer_to_peer_handler {
         while (true) {
           std::vector<char> vec;
           vector_buffer buf(vec);
-          int n=read(*sock, buf);
-          if(n==0){
+          int n = read(*sock, buf);
+          if (n == 0) {
             throw std::runtime_error(std::string("EOF"));
           }
           send(*sock, request_handler(buf));
@@ -126,7 +127,7 @@ template <typename Handler> struct broadcast_handler {
 
   broadcast_handler(Request_Handler handler)
       : request_handler(std::move(handler)) {}
-  
+
   auto spawn(auto &scope, auto &context, auto newsock) const {
     getClientList().add_client(new sock_stream(std::move(newsock)));
   }
@@ -146,24 +147,24 @@ template <typename Handler> struct broadcast_handler {
   }
 };
 
-inline auto error_to_response(std::exception_ptr err) {
-  try {
-    std::rethrow_exception(err);
-  } catch (const std::exception &e) {
-    return unifex::just(std::string(e.what()));
-  }
-}
-template <typename Func> struct upon_error {
-  Func callback;
-  upon_error(Func func) : callback(std::move(func)) {}
-  template <typename Sender>
-  friend auto operator|(Sender sender, upon_error onerror) {
-    return sender | unifex::let_error(error_to_response) |
-           unifex::then([onerror = std::move(onerror)](auto v) {
-             return onerror.callback(v);
-           });
-  }
-};
+// inline auto error_to_response(std::exception_ptr err) {
+//   try {
+//     std::rethrow_exception(err);
+//   } catch (const std::exception e) {
+//     return unifex::just_error(e);
+//   }
+// }
+// template <typename Func> struct upon_error {
+//   Func callback;
+//   upon_error(Func func) : callback(std::move(func)) {}
+//   template <typename Sender>
+//   friend auto operator|(Sender sender, upon_error onerror) {
+//     return sender | unifex::let_error(error_to_response) |
+//            unifex::then([onerror = std::move(onerror)](auto v) {
+//              return onerror.callback(v);
+//            });
+//   }
+// };
 struct EchoHandler {
   buffer operator()(buffer buff) const { return buff; }
 };

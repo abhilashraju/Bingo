@@ -13,7 +13,7 @@
 #include <unifex/then.hpp>
 namespace bingo {
 
-auto make_listener(auto address, auto port) {
+inline auto make_listener(auto address, auto port) {
   return unifex::just_from([=]() {
     sock_stream *listener = new sock_stream;
     listener->bind({address, port});
@@ -39,9 +39,9 @@ template <typename Context, typename Handler> struct handle_clients {
       return std::string("Server Started");
     });
   }
-  template <typename Sender, typename C, typename H>
+  template <typename Sender>
   inline friend auto operator|(Sender &&sender,
-                               handle_clients<C, H> &&clihandler) {
+                               handle_clients &&clihandler) {
     return sender | clihandler.get();
   }
 };

@@ -1,19 +1,23 @@
 #pragma once
+#include "bingo.hpp"
+#include "buffer.hpp"
 #include "unifex/inplace_stop_token.hpp"
 #include "unifex/repeat_effect_until.hpp"
-#include "unifex/then.hpp"
 #include "unifex/sequence.hpp"
-#include "buffer.hpp"
-#include "bingo.hpp"
+#include "unifex/then.hpp"
+#include <string>
 namespace bingo {
+
 template <typename Stream, typename Handler> struct stream_processor {
 
   Stream &stream;
   unifex::inplace_stop_source stop_src;
   Handler handler;
-  std::vector<char> v;
-  vector_buffer buf{v};
-  stream_processor(Stream &s, Handler h) : stream(s), handler(std::move(h)) {}
+
+  std::string str;
+  string_buffer buf{str};
+   stream_processor(Stream &s, Handler h)
+      : stream(s), handler(std::move(h)) {}
   void request_stop() { stop_src.request_stop(); }
   auto handle_error(std::exception &e) {
     buf.consume_all();

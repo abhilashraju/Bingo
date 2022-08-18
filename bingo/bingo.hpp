@@ -40,8 +40,7 @@ template <typename Context, typename Handler> struct handle_clients {
     });
   }
   template <typename Sender>
-  inline friend auto operator|(Sender &&sender,
-                               handle_clients &&clihandler) {
+  inline friend auto operator|(Sender &&sender, handle_clients &&clihandler) {
     return sender | clihandler.get();
   }
 };
@@ -67,8 +66,9 @@ template <typename Handler> struct peer_to_peer_handler {
       std::unique_ptr<sock_stream> sock(newsock);
       try {
         while (true) {
-          std::vector<char> vec;
-          vector_buffer buf(vec);
+
+          std::string str;
+          string_buffer buf(str);
           int n = read(*sock, buf);
           if (n == 0) {
             throw std::runtime_error(std::string("EOF"));
@@ -134,8 +134,9 @@ template <typename Handler> struct broadcast_handler {
   auto handle_read(int fd) const {
     auto sock = getClientList().find(fd);
     if (sock) {
-      std::vector<char> vec;
-      vector_buffer buf(vec);
+
+      std::string str;
+      string_buffer buf(str);
       auto n = read(*sock.value(), buf);
       if (n <= 0) {
         getClientList().remove_client(sock.value());

@@ -12,8 +12,8 @@ template <typename stream> struct async_stream {
 
     GenericReactor &reactor = GenericReactor::get_reactor();
     reactor.add_handler(self().get_fd(), [&]() {
-      std::vector<char> v;
-      vector_buffer buf{v};
+      std::string str;
+      string_buffer buf(str);
       int bytes = self().on_read_handler(buf);
       handler(buf);
       return true;

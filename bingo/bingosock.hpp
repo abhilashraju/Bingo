@@ -132,6 +132,7 @@ struct sock_stream {
     }
     return r;
   }
+ 
   friend sock_stream connect(sock_stream &stream,
                              const sock_address &serv_addr) {
     sock_stream newstream;

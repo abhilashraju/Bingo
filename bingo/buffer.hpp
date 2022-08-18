@@ -118,6 +118,7 @@ public:
 };
 
 using buffer = buffer_base<NullResizer>;
-using string_buffer = buffer_base<StringResizer>;
-using vector_buffer = buffer_base<VectorResizer>;
+using string_buffer=buffer_base<StringResizer>;
+using vector_buffer= buffer_base<VectorResizer>;
+
 } // namespace bingo

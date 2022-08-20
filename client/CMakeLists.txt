@@ -28,7 +28,7 @@ include_directories(
 
 # Add an executable
 add_executable(bingoclient 
-                ${PROJECT_SOURCE_DIR}/bingoclient.cpp 
+                ${PROJECT_SOURCE_DIR}/bingoclient2.cpp 
                 )
 
 # link against the boost libraries

@@ -5,12 +5,15 @@
 #include <sys/select.h>
 #include <unifex/async_scope.hpp>
 #include <unifex/just.hpp>
+#include <unifex/just_error.hpp>
 #include <unifex/let_error.hpp>
 #include <unifex/let_value.hpp>
 #include <unifex/on.hpp>
 #include <unifex/static_thread_pool.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
+#include <unifex/upon_error.hpp>
+#include <variant>
 namespace bingo {
 
 inline auto make_listener(auto address, auto port) {
@@ -148,25 +151,34 @@ template <typename Handler> struct broadcast_handler {
   }
 };
 
-// inline auto error_to_response(std::exception_ptr err) {
-//   try {
-//     std::rethrow_exception(err);
-//   } catch (const std::exception e) {
-//     return unifex::just_error(e);
-//   }
-// }
-// template <typename Func> struct upon_error {
-//   Func callback;
-//   upon_error(Func func) : callback(std::move(func)) {}
-//   template <typename Sender>
-//   friend auto operator|(Sender sender, upon_error onerror) {
-//     return sender | unifex::let_error(error_to_response) |
-//            unifex::then([onerror = std::move(onerror)](auto v) {
-//              return onerror.callback(v);
-//            });
-//   }
-// };
-struct EchoHandler {
-  buffer operator()(buffer buff) const { return buff; }
+template <typename Handler> struct on_error {
+  Handler h;
+  on_error(Handler h) : h(std::move(h)) {}
+  friend auto operator|(auto sender, on_error error) {
+    return sender |
+           unifex::let_error([](auto v) { return unifex::just_error(v); }) |
+           unifex::upon_error([error = std::move(error)](auto exptr) {
+             try {
+               rethrow_exception(exptr);
+             } catch (std::runtime_error e) {
+             }
+             return error.h();
+           });
+  }
 };
+
+template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+// explicit deduction guide (not needed as of C++20)
+template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+auto handle_error(auto... handlers) {
+  return unifex::let_error([=](auto exptr) {
+    try {
+      std::rethrow_exception(exptr);
+    } catch (const std::exception &e) {
+      std::variant<std::exception, std::string> v(e.what());
+      std::visit(overloaded{handlers...}, v);
+    }
+    return unifex::just();
+  });
+}
 } // namespace bingo

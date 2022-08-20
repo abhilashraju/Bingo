@@ -78,6 +78,11 @@ int main(int argc, char const *argv[]) {
   thread_data remotedata;
   async_io io;
   thread_data io_data;
+  auto clean_up = [&]() {
+    remotedata.request_stop();
+    io_data.request_stop();
+    context.request_stop();
+  };
   auto work =
       unifex::schedule(net_thread.get_scheduler()) |
       wait_for_io(client, remotedata.get_buffer()) | unifex::then([&](auto) {
@@ -89,10 +94,8 @@ int main(int argc, char const *argv[]) {
       }) |
       handle_error(
           [&](std::exception &e) {
-            std::cout << "Server Error\n";
-            remotedata.request_stop();
-            io_data.request_stop();
-            context.request_stop();
+            std::cout << "Server Error \n";
+            clean_up();
           },
           [&](std::string &e) { std::cout << "Server Error " << e << "\n"; });
 
@@ -106,9 +109,7 @@ int main(int argc, char const *argv[]) {
             }) |
             handle_error([&](auto &e) {
               std::cout << "Client Error\n";
-              remotedata.request_stop();
-              io_data.request_stop();
-              context.request_stop();
+              clean_up();
             });
   context.spawn_all(std::move(work), std::move(ui));
   context.run();

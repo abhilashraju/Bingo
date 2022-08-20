@@ -151,22 +151,6 @@ template <typename Handler> struct broadcast_handler {
   }
 };
 
-template <typename Handler> struct on_error {
-  Handler h;
-  on_error(Handler h) : h(std::move(h)) {}
-  friend auto operator|(auto sender, on_error error) {
-    return sender |
-           unifex::let_error([](auto v) { return unifex::just_error(v); }) |
-           unifex::upon_error([error = std::move(error)](auto exptr) {
-             try {
-               rethrow_exception(exptr);
-             } catch (std::runtime_error e) {
-             }
-             return error.h();
-           });
-  }
-};
-
 template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 // explicit deduction guide (not needed as of C++20)
 template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
@@ -175,7 +159,7 @@ auto handle_error(auto... handlers) {
     try {
       std::rethrow_exception(exptr);
     } catch (const std::exception &e) {
-      std::variant<std::exception, std::string> v(e.what());
+      std::variant<std::exception, std::string> v(e);
       std::visit(overloaded{handlers...}, v);
     }
     return unifex::just();

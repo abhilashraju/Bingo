@@ -23,27 +23,26 @@ int main(int argc, char const *argv[]) {
   connect(client.sock, {"127.0.0.1", PORT});
 
   thread_data remotedata;
-  auto work = unifex::schedule(net_thread.get_scheduler()) |
-              wait_for_io(client, remotedata.get_buffer()) |
-              unifex::then([&](auto) {
-                std::cout << remotedata.get_buffer().data();
-                remotedata.get_buffer().consume_all();
-              }) |
-              unifex::repeat_effect_until([token = remotedata.get_token()]() {
-                return token.stop_requested();
-              }) |
-              handle_error(
-                  [&](std::exception &e) {
-                    std::cout << "Server Error\n";
-                    remotedata.request_stop();
-                  },
-                  [&](std::string &e) {
-                    std::cout << "Server Error " << e << "\n";
-                    remotedata.request_stop();
-                  });
-
   async_io io;
   thread_data io_data;
+  auto work =
+      unifex::schedule(net_thread.get_scheduler()) |
+      wait_for_io(client, remotedata.get_buffer()) | unifex::then([&](auto) {
+        std::cout << remotedata.get_buffer().data();
+        remotedata.get_buffer().consume_all();
+      }) |
+      unifex::repeat_effect_until([token = remotedata.get_token()]() {
+        return token.stop_requested();
+      }) |
+      handle_error(
+          [&](std::exception &e) {
+            std::cout << "Server Error\n";
+            remotedata.request_stop();
+            io_data.request_stop();
+            context.request_stop();
+          },
+          [&](std::string &e) { std::cout << "Server Error " << e << "\n"; });
+
   auto ui = unifex::schedule(io_thread.get_scheduler()) |
             wait_for_io(io, io_data.get_buffer()) | unifex::then([&](auto) {
               send(client.sock, io_data.get_buffer());
@@ -54,7 +53,9 @@ int main(int argc, char const *argv[]) {
             }) |
             handle_error([&](auto &e) {
               std::cout << "Client Error\n";
+              remotedata.request_stop();
               io_data.request_stop();
+              context.request_stop();
             });
   context.spawn_all(std::move(work), std::move(ui));
   context.run();

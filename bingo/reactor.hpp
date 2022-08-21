@@ -2,8 +2,8 @@
 #include "bingosock.hpp"
 #include <functional>
 #include <mutex>
-#include <vector>
 #include <unifex/inplace_stop_token.hpp>
+#include <vector>
 namespace bingo {
 template <typename NewConnHandler, typename ReadHandler>
 struct ConnectionReactor {
@@ -59,17 +59,17 @@ struct ConnectionReactor {
 };
 
 struct GenericReactor {
-
+  enum class Reason { Trigger, Close };
   struct ReadHandlerBase {
     virtual int get_fd() const = 0;
-    virtual bool handle_read() const = 0;
+    virtual bool handle_read(Reason reason) const = 0;
     virtual ~ReadHandlerBase(){};
   };
   template <typename Handler> struct ReadHandler : ReadHandlerBase {
     int fd_{-1};
     Handler handler;
     int get_fd() const { return fd_; }
-    bool handle_read() const { return handler(); }
+    bool handle_read(Reason reason) const { return handler(reason); }
     ReadHandler(int fd, Handler h) : fd_(fd), handler(std::move(h)) {}
     ~ReadHandler() {}
   };
@@ -99,8 +99,9 @@ struct GenericReactor {
   }
   template <typename Handler>
   void add_if_not_present(auto &range, int fd, Handler h) {
-    if (std::find_if(std::begin(range), std::end(range),
-                     [&](auto &v) { return v->get_fd() == fd; }) == std::end(range)) {
+    if (std::find_if(std::begin(range), std::end(range), [&](auto &v) {
+          return v->get_fd() == fd;
+        }) == std::end(range)) {
       range.emplace_back(new ReadHandler(fd, std::move(h)));
     }
   }
@@ -110,8 +111,9 @@ struct GenericReactor {
       timeval timeout{2, 0};
 
       int nready = select(maxfd + 1, &rset, nullptr, nullptr, &timeout);
-      if (nready==0) continue;
-      
+      if (nready == 0)
+        continue;
+
       notifying = true;
       std::vector<int> toberemoved;
       toberemoved.reserve(maxfd);
@@ -124,7 +126,7 @@ struct GenericReactor {
         });
 
         if (iter != std::end(handlers)) {
-          if (!iter->get()->handle_read()) {
+          if (!iter->get()->handle_read(Reason::Trigger)) {
             FD_CLR(iter->get()->get_fd(), &allset);
             toberemoved.push_back(iter->get()->get_fd());
           }
@@ -147,6 +149,11 @@ struct GenericReactor {
       std::move(begin(pending_handlers), end(pending_handlers),
                 std::back_inserter(handlers));
       pending_handlers.clear();
+    }
+    for (auto &a : handlers) {
+      if (!a->handle_read(Reason::Close)) {
+        FD_CLR(a->get_fd(), &allset);
+      }
     }
   }
   static GenericReactor &get_reactor() {

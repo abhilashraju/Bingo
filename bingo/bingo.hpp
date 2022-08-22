@@ -24,6 +24,7 @@ inline auto make_listener(auto address, auto port) {
     return listener;
   });
 }
+
 template <typename Context, typename Handler> struct handle_clients {
   Context &context;
   Handler handler;

@@ -46,7 +46,7 @@ template <typename stream> struct async_stream {
     });
     std::unique_lock lk(m);
     cv.wait(lk, [&] { return ready; });
-dfs    if (eptr) {
+    if (eptr) {
       std::rethrow_exception(eptr);
     }
     return handler();

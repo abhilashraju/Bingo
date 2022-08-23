@@ -13,7 +13,11 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
 #include <unifex/upon_error.hpp>
+#include "unifex/inplace_stop_token.hpp"
+#include "unifex/repeat_effect_until.hpp"
+#include "unifex/typed_via.hpp"
 #include <variant>
+
 namespace bingo {
 
 inline auto make_listener(auto address, auto port) {
@@ -155,7 +159,7 @@ template <typename Handler> struct broadcast_handler {
 template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 // explicit deduction guide (not needed as of C++20)
 template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-auto handle_error(auto... handlers) {
+inline auto handle_error(auto... handlers) {
   return unifex::let_error([=](auto exptr) {
     try {
       std::rethrow_exception(exptr);
@@ -164,6 +168,73 @@ auto handle_error(auto... handlers) {
       std::visit(overloaded{handlers...}, v);
     }
     return unifex::just();
+  });
+}
+
+inline auto read_data(auto &stream, auto &buff) {
+
+  if (int n; (n = read(stream, buff)) > 0) {
+    printf("%s", buff.data());
+    return n;
+  }
+  throw std::runtime_error("client closed");
+}
+inline auto write_data(auto &stream, auto &buff) {
+  if (int n; (n = send(stream, buff)) > 0) {
+    buff.consume(n);
+  }
+}
+
+inline auto spawn_clients(auto client_agent, auto newconnection) {
+  struct async_context {
+    sock_stream stream;
+    unifex::async_scope scope;
+    unifex::inplace_stop_source stop_src;
+    std::string v;
+    string_buffer buff{v};
+    unifex::inplace_stop_token token{stop_src.get_token()};
+    async_context(sock_stream conn) : stream(std::move(conn)) {}
+  };
+  auto context = new async_context(std::move(newconnection));
+  auto work = unifex::just_from(
+                  [=]() { return std::unique_ptr<async_context>(context); }) |
+              unifex::let_value([](auto &context) {
+                auto work =
+                    unifex::just_from([contextptr = context.get()]() {
+                      return read_data(contextptr->stream, contextptr->buff);
+                    }) |
+                    unifex::then([contextptr = context.get()](auto len) {
+                      return write_data(contextptr->stream, contextptr->buff);
+                    }) |
+                    unifex::repeat_effect_until([contextptr = context.get()]() {
+                      return contextptr->token.stop_requested();
+                    }) |
+                    handle_error([contextptr = context.get()](auto &v) {
+                      contextptr->stop_src.request_stop();
+                    });
+                return work;
+              });
+
+  context->scope.spawn_on(client_agent, work);
+}
+inline auto acceptor(auto listener_agent) {
+  return unifex::typed_via(listener_agent) | unifex::then([](auto listener) {
+           auto newsock = accept(*listener);
+           return newsock;
+         });
+}
+inline auto peer_to_peer_sender(auto agent) {
+  return unifex::then(
+      [=](auto newconn) { return spawn_clients(agent, std::move(newconn)); });
+}
+
+inline auto listen_for_peer_to_peer_connection(auto agent, auto token,
+                                               auto client_agent) {
+  return unifex::let_value([=](auto &listener) {
+    return unifex::just(listener) | acceptor(agent) |
+           peer_to_peer_sender(client_agent) |
+           unifex::repeat_effect_until(
+               [=]() { return token.stop_requested(); });
   });
 }
 } // namespace bingo

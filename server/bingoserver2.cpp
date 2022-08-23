@@ -11,17 +11,16 @@ using namespace bingo;
 
 inline auto read_data(auto &stream, auto &buff) {
 
-  if (int n; n = read(stream, buff) > 0) {
+  if (int n; (n = read(stream, buff)) > 0) {
     printf("%s", buff.data());
     return n;
   }
   throw std::runtime_error("client closed");
 }
-inline auto write_data(auto &stream,auto& buff) {
-  if (int n; n = send(stream, buff) > 0) {
+inline auto write_data(auto &stream, auto &buff) {
+  if (int n; (n = send(stream, buff)) > 0) {
     buff.consume(n);
   }
- 
 }
 auto spawn_clients(auto sched, auto newconnection) {
   struct async_context {
@@ -73,17 +72,19 @@ int main(int argc, char const *argv[]) {
   (void)argc;
   (void)argv;
 
-  try {
+  
     unifex::static_thread_pool context;
-    unifex::inplace_stop_source strop_src;
+    unifex::inplace_stop_source stop_src;
 
     unifex::sync_wait(make_listener("127.0.0.1", PORT) |
-                      listen(context.get_scheduler(), strop_src.get_token(),
-                             context.get_scheduler()));
+                      listen(context.get_scheduler(), stop_src.get_token(),
+                             context.get_scheduler()) |
+                      handle_error([&](std::exception &v) {
+                        stop_src.request_stop();
+                        printf("%s", v.what());
+                      }));
 
-  } catch (std::exception &e) {
-    printf("%s", e.what());
-  }
+ 
 
   return 0;
 }

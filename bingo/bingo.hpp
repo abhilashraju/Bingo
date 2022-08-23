@@ -160,7 +160,7 @@ auto handle_error(auto... handlers) {
     try {
       std::rethrow_exception(exptr);
     } catch (const std::exception &e) {
-      std::variant<std::exception, std::string> v(e);
+      std::variant<std::exception> v(e);
       std::visit(overloaded{handlers...}, v);
     }
     return unifex::just();

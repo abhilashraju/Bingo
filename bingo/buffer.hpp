@@ -2,6 +2,7 @@
 #include <exception>
 #include <string>
 #include <vector>
+#include <algorithm>
 namespace bingo {
 struct NullResizer {
   char *resize(char *data, size_t current, size_t req) {
@@ -24,6 +25,19 @@ struct StringResizer {
   char *resize(char *data, size_t current, size_t req) {
     str->resize(req);
     return str->data();
+  }
+};
+struct DynamicResizer {
+  std::unique_ptr<char[]> bytes;
+  size_t length{0};
+  DynamicResizer() {}
+  char *resize(char *data, size_t current, size_t req) {
+    auto buffer = new char[req];
+    std::fill_n(buffer,req,0);
+    std::copy_n(data,std::min(current,req),buffer);
+    bytes.reset(buffer);
+    length=req;
+    return bytes.get();
   }
 };
 
@@ -61,6 +75,11 @@ public:
     resizer.set_vector(v);
     intialise(v.data(), v.capacity());
     capacity = v.capacity();
+  }
+   buffer_base(DynamicResizer res = DynamicResizer())
+      : resizer(res) {
+    intialise(res.bytes.get(), res.length);
+    capacity = res.length;
   }
   buffer_base(std::string &v, StringResizer res = StringResizer())
       : resizer(res) {
@@ -120,5 +139,6 @@ public:
 using buffer = buffer_base<NullResizer>;
 using string_buffer = buffer_base<StringResizer>;
 using vector_buffer = buffer_base<VectorResizer>;
+using dynamic_buffer = buffer_base<DynamicResizer>;
 
 } // namespace bingo

@@ -12,7 +12,8 @@
 #include <unistd.h>
 #include <utility>
 #include <vector>
-#include <buffer.hpp>
+#include "buffer.hpp"
+#include "errors.hpp"
 namespace bingo {
 struct sock_address {
   struct sockaddr_in address {
@@ -23,7 +24,7 @@ struct sock_address {
     address.sin_family = AF_INET;
     address.sin_port = htons(port);
     if (int r = inet_pton(AF_INET, addr.data(), &address.sin_addr) <= 0) {
-      throw std::runtime_error(std::string("address error: ") + strerror(r));
+      throw socket_exception(std::string("address error: ") + strerror(r));
     }
   }
 };
@@ -33,7 +34,7 @@ struct sock_stream {
   bool listening{false};
   sock_stream() {
     if ((fd_ = ::socket(AF_INET, SOCK_STREAM, 0)) == 0) {
-      throw std::runtime_error(std::string("sock creation error: ") +
+      throw socket_exception(std::string("sock creation error: ") +
                                strerror(errno));
     }
   }
@@ -51,7 +52,7 @@ struct sock_stream {
     address = addr;
     if (int r = ::bind(fd_, (struct sockaddr *)&address.address,
                        sizeof(addr.address)) < 0) {
-      throw std::runtime_error(std::string("bind error: ") + strerror(r));
+      throw socket_exception(std::string("bind error: ") + strerror(r));
     }
     return *this;
   }
@@ -78,7 +79,7 @@ struct sock_stream {
   friend void shutdown(sock_stream &stream) { shutdown(stream.fd_, SHUT_RDWR); }
   friend void listen(sock_stream &stream) {
     if (::listen(stream.fd_, 3) < 0) {
-      throw std::runtime_error(std::string("listen error: ") + strerror(errno));
+      throw socket_exception(std::string("listen error: ") + strerror(errno));
     }
   }
   friend void listen(sock_stream &stream, const sock_address &addr) {
@@ -88,7 +89,7 @@ struct sock_stream {
   friend void set_blocked(sock_stream &stream) {
     if (int r = fcntl(stream.fd_, F_SETFL,
                       fcntl(stream.fd_, F_GETFL) | F_LOCK) < 0) {
-      throw std::runtime_error(std::string("block failed error: ") +
+      throw socket_exception(std::string("block failed error: ") +
                                strerror(r));
     }
   }
@@ -99,7 +100,7 @@ struct sock_stream {
     int fd{-1};
     if ((fd = ::accept(stream.fd_, (struct sockaddr *)&address.address,
                        (socklen_t *)&addrlen)) < 0) {
-      throw std::runtime_error(std::string("accept error: ") + strerror(errno));
+      throw socket_exception(std::string("accept error: ") + strerror(errno));
     }
     sock_stream new_socket{fd, address, false};
     set_blocked(new_socket);
@@ -114,7 +115,7 @@ struct sock_stream {
        int r = ::read(stream.fd_, buff.prepare(MAXSIZE), MAXSIZE);
        if (r < 0) {
           if(errno==EINTR) continue;
-          throw std::runtime_error(strerror(r));
+          throw socket_exception(strerror(r));
        }
        read+=r;
        buff.commit(r);
@@ -128,7 +129,7 @@ struct sock_stream {
   friend int send(const sock_stream &stream, Buffer buff) {
     int r = ::send(stream.fd_, buff.data(), buff.read_length(), MSG_NOSIGNAL);
     if (r < 0) {
-      throw std::runtime_error(strerror(r));
+      throw socket_exception(strerror(r));
     }
     return r;
   }
@@ -139,7 +140,7 @@ struct sock_stream {
     if ((newstream.fd_ =
              ::connect(stream.fd_, (struct sockaddr *)&serv_addr.address,
                        sizeof(serv_addr.address))) < 0) {
-      throw std::runtime_error(std::string("connection error: ") +
+      throw socket_exception(std::string("connection error: ") +
                                strerror(errno));
     }
     set_blocked(newstream);

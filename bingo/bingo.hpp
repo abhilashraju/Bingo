@@ -1,7 +1,11 @@
 #pragma once
 #include "bingosock.hpp"
 #include "buffer.hpp"
+#include "errors.hpp"
 #include "reactor.hpp"
+#include "unifex/inplace_stop_token.hpp"
+#include "unifex/repeat_effect_until.hpp"
+#include "unifex/typed_via.hpp"
 #include <sys/select.h>
 #include <unifex/async_scope.hpp>
 #include <unifex/just.hpp>
@@ -13,11 +17,8 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
 #include <unifex/upon_error.hpp>
-#include "unifex/inplace_stop_token.hpp"
-#include "unifex/repeat_effect_until.hpp"
-#include "unifex/typed_via.hpp"
+#include <unifex/retry_when.hpp>
 #include <variant>
-
 namespace bingo {
 
 inline auto make_listener(auto address, auto port) {
@@ -79,7 +80,7 @@ template <typename Handler> struct peer_to_peer_handler {
           string_buffer buf(str);
           int n = read(*sock, buf);
           if (n == 0) {
-            throw std::runtime_error(std::string("EOF"));
+            throw socket_exception(std::string("EOF"));
           }
           send(*sock, request_handler(buf));
         }
@@ -177,7 +178,7 @@ inline auto read_data(auto &stream, auto &buff) {
     printf("%s", buff.data());
     return n;
   }
-  throw std::runtime_error("client closed");
+  throw socket_exception("client closed");
 }
 inline auto write_data(auto &stream, auto &buff) {
   if (int n; (n = send(stream, buff)) > 0) {
@@ -185,7 +186,7 @@ inline auto write_data(auto &stream, auto &buff) {
   }
 }
 
-inline auto spawn_clients(auto client_agent, auto newconnection) {
+inline auto spawn_clients(auto client_agent, auto newconnection, auto do_work) {
   struct async_context {
     sock_stream stream;
     unifex::async_scope scope;
@@ -196,24 +197,42 @@ inline auto spawn_clients(auto client_agent, auto newconnection) {
     async_context(sock_stream conn) : stream(std::move(conn)) {}
   };
   auto context = new async_context(std::move(newconnection));
-  auto work = unifex::just_from(
-                  [=]() { return std::unique_ptr<async_context>(context); }) |
-              unifex::let_value([](auto &context) {
-                auto work =
-                    unifex::just_from([contextptr = context.get()]() {
-                      return read_data(contextptr->stream, contextptr->buff);
-                    }) |
-                    unifex::then([contextptr = context.get()](auto len) {
-                      return write_data(contextptr->stream, contextptr->buff);
-                    }) |
-                    unifex::repeat_effect_until([contextptr = context.get()]() {
-                      return contextptr->token.stop_requested();
-                    }) |
-                    handle_error([contextptr = context.get()](auto &v) {
-                      contextptr->stop_src.request_stop();
-                    });
-                return work;
-              });
+  auto work =
+      unifex::just_from(
+          [=]() { return std::unique_ptr<async_context>(context); }) |
+      unifex::let_value([=](auto &context) {
+        auto child_work =
+            unifex::just_from([contextptr = context.get()]() {
+              return read_data(contextptr->stream, contextptr->buff);
+            }) |
+            unifex::let_value([=, contextptr = context.get()](auto &len) {
+              auto client_work = do_work(contextptr->buff.read_view());
+              contextptr->buff.consume_all();
+              return client_work;
+            }) |
+            unifex::let_value([contextptr = context.get()](auto &buff) {
+              string_buffer strbuff(buff);
+              write_data(contextptr->stream, strbuff);
+              return unifex::just();
+            }) |
+            unifex::repeat_effect_until([contextptr = context.get()]() {
+              return contextptr->token.stop_requested();
+            }) |
+            unifex::retry_when(
+                [](std::exception_ptr ex) mutable {
+                  try{
+                    std::rethrow_exception(ex);
+                  }catch(application_error error){
+
+                  }
+                  return unifex::just();
+                }) |
+            handle_error([contextptr = context.get()](auto &v) {
+              //    contextptr->stop_src.request_stop();
+              printf("client closed");
+            });
+        return child_work;
+      });
 
   context->scope.spawn_on(client_agent, work);
 }
@@ -223,16 +242,17 @@ inline auto acceptor(auto listener_agent) {
            return newsock;
          });
 }
-inline auto peer_to_peer_sender(auto agent) {
-  return unifex::then(
-      [=](auto newconn) { return spawn_clients(agent, std::move(newconn)); });
+inline auto peer_to_peer_sender(auto agent, auto worker) {
+  return unifex::then([=, worker = std::move(worker)](auto newconn) {
+    return spawn_clients(agent, std::move(newconn), std::move(worker));
+  });
 }
 
 inline auto listen_for_peer_to_peer_connection(auto agent, auto token,
-                                               auto client_agent) {
+                                               auto client_agent, auto worker) {
   return unifex::let_value([=](auto &listener) {
     return unifex::just(listener) | acceptor(agent) |
-           peer_to_peer_sender(client_agent) |
+           peer_to_peer_sender(client_agent, std::move(worker)) |
            unifex::repeat_effect_until(
                [=]() { return token.stop_requested(); });
   });

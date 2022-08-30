@@ -1,5 +1,7 @@
 #include <boost/beast.hpp>
 #include <istream>
+#include "http_error.hpp"
+
 namespace beast = boost::beast;   // from <boost/beast.hpp>
 namespace http =beast::http;
 namespace bingo{
@@ -207,13 +209,14 @@ handle_request(
     auto const bad_request =
     [&req](std::string_view why)
     {
-        http::response<http::string_body> res{http::status::bad_request, req.version()};
-        res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
-        res.set(http::field::content_type, "text/html");
-        res.keep_alive(req.keep_alive());
-        res.body() = std::string(why);
-        res.prepare_payload();
-        return res;
+        // http::response<http::string_body> res{http::status::bad_request, req.version()};
+        // res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
+        // res.set(http::field::content_type, "text/html");
+        // res.keep_alive(req.keep_alive());
+        // res.body() = std::string(why);
+        // res.prepare_payload();
+        // return res;
+        throw std::invalid_argument("bad request");
          
     };
 
@@ -221,38 +224,40 @@ handle_request(
     auto const not_found =
     [&req](std::string_view target)
     {
-        http::response<http::string_body> res{http::status::not_found, req.version()};
-        res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
-        res.set(http::field::content_type, "text/html");
-        res.keep_alive(req.keep_alive());
-        res.body() = "The resource '" + std::string(target) + "' was not found.";
-        res.prepare_payload();
-        return res;
+        // http::response<http::string_body> res{http::status::not_found, req.version()};
+        // res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
+        // res.set(http::field::content_type, "text/html");
+        // res.keep_alive(req.keep_alive());
+        // res.body() = "The resource '" + std::string(target) + "' was not found.";
+        // res.prepare_payload();
+        // return res;
+        throw file_not_found(target.data());
     };
 
     // Returns a server error response
     auto const server_error =
     [&req](std::string_view what)
     {
-        http::response<http::string_body> res{http::status::internal_server_error, req.version()};
-        res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
-        res.set(http::field::content_type, "text/html");
-        res.keep_alive(req.keep_alive());
-        res.body() = "An error occurred: '" + std::string(what) + "'";
-        res.prepare_payload();
-        return res;
+        // http::response<http::string_body> res{http::status::internal_server_error, req.version()};
+        // res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
+        // res.set(http::field::content_type, "text/html");
+        // res.keep_alive(req.keep_alive());
+        // res.body() = "An error occurred: '" + std::string(what) + "'";
+        // res.prepare_payload();
+        // return res;
+        throw std::exception();
     };
 
     // Make sure we can handle the method
     if( req.method() != http::verb::get &&
         req.method() != http::verb::head)
-        return bad_request("Unknown HTTP-method");
+         bad_request("Unknown HTTP-method");
 
     // Request path must be absolute and not contain "..".
     if( req.target().empty() ||
         req.target()[0] != '/' ||
         req.target().find("..") != std::string_view::npos)
-        return bad_request("Illegal request-target");
+         bad_request("Illegal request-target");
 
     // Build the path to the requested file
     std::string path = path_cat(doc_root, std::string_view(req.target().data(),req.target().length()));
@@ -267,11 +272,11 @@ handle_request(
     // Handle the case where the file doesn't exist
     if(ec == beast::errc::no_such_file_or_directory)
      
-        return not_found(std::string_view(req.target().data(),req.target().length()));
+         not_found(std::string_view(req.target().data(),req.target().length()));
 
     // Handle an unknown error
     if(ec)
-        return server_error(ec.message());
+         server_error(ec.message());
 
     // Cache the size since we need it after the move
     auto const size = body.size();
@@ -287,15 +292,17 @@ handle_request(
     //     return res;
     // }
 
-    // // Respond to GET request
-    // http::response<http::file_body> res{
-    //     std::piecewise_construct,
-    //     std::make_tuple(std::move(body)),
-    //     std::make_tuple(http::status::ok, req.version())};
-    // res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
-    // res.set(http::field::content_type, mime_type(path));
-    // res.content_length(size);
-    // res.keep_alive(req.keep_alive());
-    // return res;
+    // Respond to GET request
+   
+    http::response<http::file_body> res{
+        std::piecewise_construct,
+        std::make_tuple(std::move(body)),
+        std::make_tuple(http::status::ok, req.version())};
+    res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
+    auto type= mime_type(path);
+    res.set(http::field::content_type, boost::string_view(type.data(),type.length()));
+    res.content_length(size);
+    res.keep_alive(req.keep_alive());
+    return res;
 }
 }

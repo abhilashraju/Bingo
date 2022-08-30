@@ -29,9 +29,16 @@ auto error_to_response() {
   return [](auto expn) {
     try {
       std::rethrow_exception(expn);
-    } catch (...) {
-      return unifex::just(std::string("Exception"));
+    } catch (const file_not_found& e) {
+      return unifex::just(std::string(e.what()));
     }
+    catch (const std::invalid_argument& e) {
+      return unifex::just(std::string(e.what()));
+    }
+    catch (const std::exception& e) {
+      return unifex::just(std::string("Internal Server Error"));
+    }
+
   };
 }
 auto let_stopped() {
@@ -70,7 +77,8 @@ int main(int argc, char const *argv[]) {
                 // | unifex::let_value(send_response);
     return unifex::just(buff)
            |unifex::let_value(validate_request())
-           |unifex::let_value(handle_request());
+           |unifex::let_value(handle_request())
+           | unifex::let_error(error_to_response());
   
   };
   make_listener("127.0.0.1", PORT) |

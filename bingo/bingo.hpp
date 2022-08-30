@@ -207,12 +207,12 @@ inline auto spawn_clients(auto client_agent, auto newconnection, auto do_work) {
             }) |
             unifex::let_value([=, contextptr = context.get()](auto &len) {
               auto client_work = do_work(contextptr->buff.read_view());
-              contextptr->buff.consume_all();
               return client_work;
             }) |
             unifex::let_value([contextptr = context.get()](auto &buff) {
               string_buffer strbuff(buff);
               write_data(contextptr->stream, strbuff);
+              contextptr->buff.consume_all();
               return unifex::just();
             }) |
             unifex::repeat_effect_until([contextptr = context.get()]() {

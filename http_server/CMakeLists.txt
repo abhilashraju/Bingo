@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.1)
 
-project (bingo)
+set (appname bingo_http_server)
+project (${appname})
 
 
 # set the C++ standard to C++ 17
@@ -16,15 +17,26 @@ endif()
 
 add_compile_options(-O0 -Wall -Wextra -pedantic ) 
 
-SET (PROJECT_ROOT "${PROJECT_SOURCE_DIR}")
-
+SET (PROJECT_ROOT "..")
+SET (UNIFEX_INCLUDE_DIR  "${PROJECT_ROOT}/thirdparty/include")
 MESSAGE ("Source path: ${PROJECT_SOURCE_DIR}")
 MESSAGE ("Binary path: ${PROJECT_BINARY_DIR}")
 
 include_directories(
-    "${PROJECT_SOURCE_DIR}"  
+    "${PROJECT_ROOT}/bingo" 
+    "${UNIFEX_INCLUDE_DIR}" 
     )
-add_subdirectory(bingo)
-add_subdirectory(client)
-add_subdirectory(server)
-add_subdirectory(http_server)
+link_directories(
+    "${PROJECT_ROOT}/build/bingo"
+)
+# Add an executable
+add_executable(${appname} 
+                ${PROJECT_SOURCE_DIR}/http_server.cpp 
+                )
+
+# link against the boost libraries
+target_link_libraries( ${appname}
+    PRIVATE
+        pthread
+        unifex
+)

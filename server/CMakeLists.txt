@@ -30,7 +30,7 @@ link_directories(
 )
 # Add an executable
 add_executable(bingoserver 
-                ${PROJECT_SOURCE_DIR}/bingoserver2.cpp 
+                ${PROJECT_SOURCE_DIR}/bingoserver.cpp 
                 )
 
 # link against the boost libraries

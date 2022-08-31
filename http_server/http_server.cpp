@@ -22,30 +22,34 @@ auto handle_request() {
   return [](auto &&req_) {
     auto var = handle_request("/", std::move(req_));
 
-    return unifex::just(std::string("Handled"));
+    return unifex::just(var);
   };
+}
+auto make_error(bingo::status st, std::string_view error) {
+  bingo::response<std::string> res{error.data(), st, 11};
+  res.set(bingo::field::server, "bingo:0.0.1");
+  res.set(bingo::field::content_type, "plain/text");
+  res.set(bingo::field::content_length, std::to_string(0));
+  return res;
 }
 auto error_to_response() {
   return [](auto expn) {
     try {
       std::rethrow_exception(expn);
-    } catch (const file_not_found& e) {
-      return unifex::just(std::string(e.what())+"Not Found");
+    } catch (const file_not_found &e) {
+      return unifex::just(make_error(bingo::status::not_found,std::string(e.what())+"Not Found"));
+    } catch (const std::invalid_argument &e) {
+      return unifex::just(make_error(bingo::status::forbidden,std::string(e.what())+"Invalid Argument"));
+    } catch (const std::exception &e) {
+      return unifex::just(make_error(bingo::status::internal_server_error,std::string(e.what())+"Server Error"));
     }
-    catch (const std::invalid_argument& e) {
-      return unifex::just(std::string(e.what()));
-    }
-    catch (const std::exception& e) {
-      return unifex::just(std::string("Internal Server Error"));
-    }
-
   };
 }
 auto let_stopped() {
   return []() { return unifex::just(std::string("Stopped")); };
 }
 auto send_response() {
-  return []() { return unifex::just(std::string("Sent")); };
+  return [](auto &res) { return unifex::just(std::string("Sent")); };
 }
 int main(int argc, char const *argv[]) {
   (void)argc;
@@ -66,20 +70,19 @@ int main(int argc, char const *argv[]) {
   auto http_worker = [](auto buff) {
     // auto resp = unifex::just(buff) |
     //             unifex::let_value(validate_request);
-                // // process the request in a function that may be using a
-                // // different execution context
-                // | unifex::let_value(handle_request_l)
-                // // If there are errors transform them into proper responses
-                // | unifex::let_error(error_to_response)
-                // // If the flow is cancelled, send back a proper response
-                // // | unifex::let_stopped(stopped_to_response)
-                // // write the result back to the client
-                // | unifex::let_value(send_response);
-    return unifex::just(buff)
-           |unifex::let_value(validate_request())
-           |unifex::let_value(handle_request())
-           | unifex::let_error(error_to_response());
-  
+    // // process the request in a function that may be using a
+    // // different execution context
+    // | unifex::let_value(handle_request_l)
+    // // If there are errors transform them into proper responses
+    // | unifex::let_error(error_to_response)
+    // // If the flow is cancelled, send back a proper response
+    // // | unifex::let_stopped(stopped_to_response)
+    // // write the result back to the client
+    // | unifex::let_value(send_response);
+    return unifex::just(buff) | unifex::let_value(validate_request()) |
+           unifex::let_value(handle_request()) |
+           unifex::let_error(error_to_response()) |
+           unifex::let_value(send_response());
   };
   make_listener("127.0.0.1", PORT) |
       listen_for_peer_to_peer_connection(

@@ -30,7 +30,7 @@ auto error_to_response() {
     try {
       std::rethrow_exception(expn);
     } catch (const file_not_found& e) {
-      return unifex::just(std::string(e.what()));
+      return unifex::just(std::string(e.what())+"Not Found");
     }
     catch (const std::invalid_argument& e) {
       return unifex::just(std::string(e.what()));

@@ -1,5 +1,5 @@
 #pragma once
-#include "header.hpp"
+#include "http_header.hpp"
 namespace bingo {
 
 template <bool isRequest, typename Body, typename Fields>
@@ -22,4 +22,6 @@ template <typename Body = std::string, typename Fields = fields>
 using response = message<false, Body, Fields>;
 template <typename Body = std::string, typename Fields = fields>
 using request = message<true, Body, Fields>;
+
+#include "http_message.ipp"
 } // namespace bingo

@@ -2,6 +2,7 @@
 // programming
 #include "bingo.hpp"
 #include "http_parser.hpp"
+#include "http_serializer.hpp"
 #include <iostream>
 #define PORT 8080
 
@@ -49,7 +50,10 @@ auto let_stopped() {
   return []() { return unifex::just(std::string("Stopped")); };
 }
 auto send_response() {
-  return [](auto &res) { return unifex::just(std::string("Sent")); };
+  return [](auto &res) { 
+    
+    return unifex::just(serialize(res)); 
+    };
 }
 int main(int argc, char const *argv[]) {
   (void)argc;

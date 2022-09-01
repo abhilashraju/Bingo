@@ -16,10 +16,22 @@ struct fields {
   }
   const std::string_view get(const std::string &name) const {
     auto iter = fields_.find(name);
-    if (iter != end(fields_)) {
+    if (iter != std::end(fields_)) {
       return std::string_view{iter->second.data(), iter->second.length()};
     }
     return std::string_view(nullptr, 0);
+  }
+  auto cbegin() const{
+    return std::cbegin(fields_);
+  }
+  auto cend() const{
+    return std::cend(fields_);
+  }
+   auto begin() {
+    return std::begin(fields_);
+  }
+  auto end() {
+    return std::end(fields_);
   }
 };
 } // namespace bingo

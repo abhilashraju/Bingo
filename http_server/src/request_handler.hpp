@@ -1,5 +1,5 @@
 #pragma once
-#include "file_stdio.hpp"
+#include "http_file_body.hpp"
 namespace bingo {
 inline std::string_view mime_type(std::string_view path) {
   using bingo::iequals;
@@ -103,35 +103,32 @@ auto handle_request(std::string_view doc_root,
 
   // Attempt to open the file
 
-  file_stdio body;
-  body.open(path.c_str(), bingo::file_mode::scan);
+  file_stdio file;
+  file.open(path.c_str(), bingo::file_mode::scan);
 
-  // Cache the size since we need it after the move
-  auto const size = body.size();
+  auto size = file.size();
 
 //   Respond to HEAD request
-  if(req.method() == http::verb::head)
-  {
-      bingo::response<std::string> res{bingo::status::ok, req.version()};
-      res.set(bingo::field::server, "Bingo: 0.0.1");
-      res.set(bingo::field::content_type, mime_type(path));
-      res.set(bingo::field::content_length, std::to_string(size));
-      res.set(bingo::field::keep_alive, req.keep_alive() ? "true" : "false");
-      return res;
-  }
+  // if(req.method() == http::verb::head)
+  // {
+  //     bingo::response<std::string> res{bingo::status::ok, req.version()};
+  //     res.set(bingo::field::server, "Bingo: 0.0.1");
+  //     res.set(bingo::field::content_type, mime_type(path));
+  //     res.set(bingo::field::content_length, std::to_string(size));
+  //     res.set(bingo::field::keep_alive, req.keep_alive() ? "true" : "false");
+  //     return res;
+  // }
 
   // Respond to GET request
-  std::string str;
-  str.reserve(body.size());
-  body.read(str.data(),body.size());
-  bingo::response<std::string> res{bingo::status::ok,
+  file_body body{std::move(file)}; 
+  bingo::response<file_body> res{std::move(body),bingo::status::ok,
                                    req.version()};
   res.set(bingo::field::server, "Bingo: 0.0.1");
   auto type = mime_type(path);
   res.set(bingo::field::content_type, type);
   res.set(bingo::field::content_length, std::to_string(size));
   res.set(bingo::field::keep_alive, req.keep_alive() ? "true" : "false");
-  res.body()=str.data();
+ 
   return res;
 }
 } // namespace bingo

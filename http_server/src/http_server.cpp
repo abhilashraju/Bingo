@@ -23,9 +23,9 @@ auto validate_request() {
 }
 auto handle_request(auto doc_root) {
   return [doc_root=std::move(doc_root)](auto &&req_) {
-    auto var = handle_request(doc_root, std::move(req_));
+    auto var = std::move(handle_request(doc_root, std::move(req_)));
 
-    return unifex::just(var);
+    return unifex::just(std::move(var));
   };
 }
 auto make_error(bingo::status st, std::string_view error) {

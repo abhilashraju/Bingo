@@ -1,5 +1,6 @@
 #pragma once
 #include "http_message.hpp"
+#include "file_base.hpp"
 #include <strstream>
 namespace bingo {
 template <typename Body, typename Fields>
@@ -11,6 +12,8 @@ std::string serialize(response<Body, Fields> &res) {
   }
   stream << "\r\n";
   stream << res.body();
+
+  
   return std::move(stream.str());
 }
 } // namespace bingo

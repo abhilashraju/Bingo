@@ -11,8 +11,8 @@ struct message : public header<isRequest, Fields> {
 template <typename Body, typename Fields>
 struct message<false,Body,Fields> : public header<false, Fields> {
   
-  message(const Body& body, bingo::status st,unsigned version)
-  :header<false, Fields>(st,version),body_(body)
+  message(Body body, bingo::status st,unsigned version)
+  :header<false, Fields>(st,version),body_(std::move(body))
   {
 
   }

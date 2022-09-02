@@ -5,7 +5,7 @@ namespace bingo {
 template <typename Body, typename Fields>
 std::string serialize(response<Body, Fields> &res) {
   std::strstream stream;
-  stream << res.result_int() << " " << res.reason() << "\r\n";
+  stream <<"HTTP/"<<res.version()/10<<"."<<res.version()%10<<" " << res.result_int() << " " << res.reason() << "\r\n";
   for (const auto &p : res) {
     stream << p.first << ":" << p.second << "\r\n";
   }

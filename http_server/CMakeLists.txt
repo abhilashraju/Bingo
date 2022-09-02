@@ -19,11 +19,14 @@ add_compile_options(-O0 -Wall -Wextra -pedantic )
 
 SET (PROJECT_ROOT "..")
 SET (UNIFEX_INCLUDE_DIR  "${PROJECT_ROOT}/thirdparty/include")
+SET (PROJECT_SOURCE_DIR  "${PROJECT_SOURCE_DIR}/src")
 MESSAGE ("Source path: ${PROJECT_SOURCE_DIR}")
 MESSAGE ("Binary path: ${PROJECT_BINARY_DIR}")
 
 include_directories(
     "${PROJECT_ROOT}/bingo" 
+    "${PROJECT_ROOT}/http_server/include" 
+    "${PROJECT_ROOT}/http_server/imp" 
     "${UNIFEX_INCLUDE_DIR}" 
     )
 link_directories(

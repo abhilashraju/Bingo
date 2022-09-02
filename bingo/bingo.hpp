@@ -13,11 +13,11 @@
 #include <unifex/let_error.hpp>
 #include <unifex/let_value.hpp>
 #include <unifex/on.hpp>
+#include <unifex/retry_when.hpp>
 #include <unifex/static_thread_pool.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
 #include <unifex/upon_error.hpp>
-#include <unifex/retry_when.hpp>
 #include <variant>
 namespace bingo {
 
@@ -218,18 +218,16 @@ inline auto spawn_clients(auto client_agent, auto newconnection, auto do_work) {
             unifex::repeat_effect_until([contextptr = context.get()]() {
               return contextptr->token.stop_requested();
             }) |
-            unifex::retry_when(
-                [](std::exception_ptr ex) mutable {
-                  try{
-                    std::rethrow_exception(ex);
-                  }catch(application_error error){
-
-                  }
-                  return unifex::just();
-                }) |
+            unifex::retry_when([](std::exception_ptr ex) mutable {
+              try {
+                std::rethrow_exception(ex);
+              } catch (application_error error) {
+              }
+              return unifex::just();
+            }) |
             handle_error([contextptr = context.get()](auto &v) {
               //    contextptr->stop_src.request_stop();
-              printf("client closed");
+              printf("client closed\n");
             });
         return child_work;
       });

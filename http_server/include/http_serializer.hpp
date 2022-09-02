@@ -10,7 +10,7 @@ std::string serialize(response<Body, Fields> &res) {
     stream << p.first << ":" << p.second << "\r\n";
   }
   stream << "\r\n";
-  stream << res.body;
+  stream << res.body();
   return std::move(stream.str());
 }
 } // namespace bingo

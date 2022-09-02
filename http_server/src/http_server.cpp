@@ -3,6 +3,8 @@
 #include "bingo.hpp"
 #include "http_parser.hpp"
 #include "http_serializer.hpp"
+#include "request_handler.hpp"
+#include <filesystem>
 #include <iostream>
 #define PORT 8080
 
@@ -19,9 +21,9 @@ auto validate_request() {
     return unifex::just(req_);
   };
 }
-auto handle_request() {
-  return [](auto &&req_) {
-    auto var = handle_request("/", std::move(req_));
+auto handle_request(auto doc_root) {
+  return [doc_root=std::move(doc_root)](auto &&req_) {
+    auto var = handle_request(doc_root, std::move(req_));
 
     return unifex::just(var);
   };
@@ -59,22 +61,17 @@ auto send_response() {
 int main(int argc, char const *argv[]) {
   (void)argc;
   (void)argv;
-
+  namespace fs = std::filesystem;
+  std::string doc_root=fs::current_path().c_str();
+  if(argc >1){
+    doc_root=argv[1];
+  }
   unifex::static_thread_pool context;
   unifex::inplace_stop_source stop_src;
-  int count = 0;
-  auto worker = [](auto buff) {
-    std::string newbuf;
-    newbuf.resize(buff.read_length());
-    std::copy(buff.data(), buff.data() + buff.read_length(), newbuf.data());
-    if (buff.data() == std::string("throw\n"))
-      throw application_error("application error");
-    return unifex::just(std::move(newbuf));
-  };
 
-  auto http_worker = [](auto buff) {
+  auto http_worker = [=](auto buff) {
     return unifex::just(buff) | unifex::let_value(validate_request()) |
-           unifex::let_value(handle_request()) |
+           unifex::let_value(handle_request(doc_root)) |
            unifex::let_error(error_to_response()) |
            unifex::let_value(send_response());
   };

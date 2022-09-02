@@ -19,8 +19,8 @@ add_compile_options(-O0 -Wall -Wextra -pedantic )
 
 SET (PROJECT_ROOT "..")
 SET (UNIFEX_INCLUDE_DIR  "${PROJECT_ROOT}/thirdparty/include")
-SET (PROJECT_SOURCE_DIR  "${PROJECT_SOURCE_DIR}/src")
-MESSAGE ("Source path: ${PROJECT_SOURCE_DIR}")
+SET (SERVER_SOURCE_DIR  "${PROJECT_SOURCE_DIR}/src")
+MESSAGE ("Source path: ${SERVER_SOURCE_DIR}")
 MESSAGE ("Binary path: ${PROJECT_BINARY_DIR}")
 
 include_directories(
@@ -34,7 +34,7 @@ link_directories(
 )
 # Add an executable
 add_executable(${appname} 
-                ${PROJECT_SOURCE_DIR}/http_server.cpp 
+                ${SERVER_SOURCE_DIR}/http_server.cpp 
                 )
 
 # link against the boost libraries

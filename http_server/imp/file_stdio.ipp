@@ -78,7 +78,7 @@ void file_stdio::open(char const *path, file_mode mode) {
 
   f_ = std::fopen(path, s);
   if (!f_) {
-    throw std::runtime_error("Cannot Open File");
+    throw bingo::file_not_found(path);
   }
 }
 

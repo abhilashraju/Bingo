@@ -41,14 +41,14 @@ auto error_to_response() {
       std::rethrow_exception(expn);
     } catch (const file_not_found &e) {
       return unifex::just(make_error(bingo::status::not_found,
-                                     std::string(e.what()) + "Not Found"));
+                                     std::string(e.what()) + " Not Found"));
     } catch (const std::invalid_argument &e) {
       return unifex::just(
           make_error(bingo::status::forbidden,
                      std::string(e.what()) + "Invalid Argument"));
     } catch (const std::exception &e) {
       return unifex::just(make_error(bingo::status::internal_server_error,
-                                     std::string(e.what()) + "Server Error"));
+                                     std::string(e.what()) + " Server Error"));
     }
   };
 }

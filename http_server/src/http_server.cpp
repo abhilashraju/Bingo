@@ -23,17 +23,26 @@ auto validate_request() {
 }
 auto handle_request(auto doc_root) {
   return [doc_root=std::move(doc_root)](auto &&req_) {
-    auto var = std::move(handle_request(doc_root, std::move(req_)));
+    std::strstream stream;
+    
+    handle_request(doc_root, std::move(req_),[&](auto resp){
+      beast::error_code ec{};
+      write_ostream(stream,resp,ec);
+    });
 
-    return unifex::just(std::move(var));
+    return unifex::just(std::move(stream));
   };
 }
 auto make_error(bingo::status st, std::string_view error) {
-  bingo::response<std::string> res{error.data(), st, 11};
-  res.set(bingo::field::server, "bingo:0.0.1");
-  res.set(bingo::field::content_type, "text/plain");
-  res.set(bingo::field::content_length, std::to_string(error.length()));
-  return res;
+  http::response<http::string_body> res{http::status::ok, 11};
+  res.set(http::field::server, "bingo:0.0.1");
+  res.set(http::field::content_type, "text/plain");
+  res.set(http::field::content_length, std::to_string(error.length()));
+  res.body()=std::string{error.data(),error.length()};
+  std::strstream stream;
+  beast::error_code ec{};
+  write_ostream(stream,res,ec);
+  return std::move(stream);
 }
 auto error_to_response() {
   return [](auto expn) {
@@ -56,7 +65,7 @@ auto let_stopped() {
   return []() { return unifex::just(std::string("Stopped")); };
 }
 auto send_response() {
-  return [](auto &res) { return unifex::just(serialize(res)); };
+  return [](auto &res) { return unifex::just(std::string(res.str())); };
 }
 int main(int argc, char const *argv[]) {
   (void)argc;

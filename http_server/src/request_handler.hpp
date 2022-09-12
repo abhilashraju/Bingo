@@ -1,12 +1,20 @@
 #pragma once
 #include "http_file_body.hpp"
 namespace bingo {
-inline std::string_view mime_type(std::string_view path) {
-  using bingo::iequals;
+namespace beast = boost::beast; // from <boost/beast.hpp>
+namespace http = beast::http;
+inline boost::string_view to_bsv(std::string_view vw){
+  return boost::string_view{vw.data(),vw.length()};
+}
+inline std::string_view to_ssv(boost::string_view vw){
+  return std::string_view{vw.data(),vw.length()};
+}
+inline boost::string_view mime_type(boost::string_view path) {
+  using beast::iequals;
   auto const ext = [&path] {
     auto const pos = path.rfind(".");
     if (pos == std::string_view::npos)
-      return std::string_view{};
+      return boost::string_view{};
     return path.substr(pos);
   }();
   if (iequals(ext, ".htm"))
@@ -56,21 +64,24 @@ inline std::string_view mime_type(std::string_view path) {
 
 // Append an HTTP rel-path to a local filesystem path.
 // The returned path is normalized for the platform.
-inline std::string path_cat(std::string_view base, std::string_view path) {
-  if (base.empty())
-    return std::string(path);
-  std::string result(base);
-  char constexpr path_separator = '/';
-  if (result.back() == path_separator)
-    result.resize(result.size() - 1);
-  result.append(path.data(), path.size());
-
-  return result;
+std::string
+path_cat(
+    beast::string_view base,
+    beast::string_view path)
+{
+    if(base.empty())
+        return std::string(path);
+    std::string result(base);
+    char constexpr path_separator = '/';
+    if(result.back() == path_separator)
+        result.resize(result.size() - 1);
+    result.append(path.data(), path.size());
+    return result;
 }
 
 template <class Body, class Allocator>
 auto handle_request(std::string_view doc_root,
-                    http::request<Body, http::basic_fields<Allocator>> &&req) {
+                    http::request<Body, http::basic_fields<Allocator>> &&req,auto&& send) {
   // Returns a bad request response
   auto const bad_request = [&req](std::string_view why) {
     throw std::invalid_argument("Bad Request:" +std::string(why));
@@ -97,38 +108,48 @@ auto handle_request(std::string_view doc_root,
 
   // Build the path to the requested file
   std::string path = path_cat(
-      doc_root, std::string_view(req.target().data(), req.target().length()));
+      to_bsv(doc_root), boost::string_view(req.target().data(), req.target().length()));
   if (req.target().back() == '/')
     path.append("index.html");
 
   // Attempt to open the file
 
-  file_stdio file;
-  file.open(path.c_str(), bingo::file_mode::scan);
+  // Attempt to open the file
+    beast::error_code ec;
+    http::file_body::value_type body;
+    body.open(path.c_str(), beast::file_mode::scan, ec);
 
-  auto size = file.size();
+    // Handle the case where the file doesn't exist
+    if(ec == beast::errc::no_such_file_or_directory)
+        not_found(to_ssv(req.target()));
 
-//   Respond to HEAD request
-  // if(req.method() == http::verb::head)
-  // {
-  //     bingo::response<std::string> res{bingo::status::ok, req.version()};
-  //     res.set(bingo::field::server, "Bingo: 0.0.1");
-  //     res.set(bingo::field::content_type, mime_type(path));
-  //     res.set(bingo::field::content_length, std::to_string(size));
-  //     res.set(bingo::field::keep_alive, req.keep_alive() ? "true" : "false");
-  //     return res;
-  // }
+    // Handle an unknown error
+    if(ec)
+        server_error(ec.message());
 
-  // Respond to GET request
-  file_body body{std::move(file)}; 
-  bingo::response<file_body> res{std::move(body),bingo::status::ok,
-                                   req.version()};
-  res.set(bingo::field::server, "Bingo: 0.0.1");
-  auto type = mime_type(path);
-  res.set(bingo::field::content_type, type);
-  res.set(bingo::field::content_length, std::to_string(size));
-  res.set(bingo::field::keep_alive, req.keep_alive() ? "true" : "false");
- 
-  return res;
+    // Cache the size since we need it after the move
+    auto const size = body.size();
+
+    // Respond to HEAD request
+    if(req.method() == http::verb::head)
+    {
+        http::response<http::empty_body> res{http::status::ok, req.version()};
+        res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
+        res.set(http::field::content_type, mime_type(path));
+        res.content_length(size);
+        res.keep_alive(req.keep_alive());
+        return send(std::move(res));
+    }
+
+    // Respond to GET request
+    http::response<http::file_body> res{
+        std::piecewise_construct,
+        std::make_tuple(std::move(body)),
+        std::make_tuple(http::status::ok, req.version())};
+    res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
+    res.set(http::field::content_type, mime_type(path));
+    res.content_length(size);
+    res.keep_alive(req.keep_alive());
+    return send(std::move(res));
 }
 } // namespace bingo

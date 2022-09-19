@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.1)
 
-set (appname bingo_http_server)
+set (appname bingo_web_server)
 project (${appname})
 
 find_package( Boost )
@@ -27,8 +27,7 @@ MESSAGE ("Binary path: ${PROJECT_BINARY_DIR}")
 
 include_directories(
     "${PROJECT_ROOT}/bingo" 
-    "${PROJECT_ROOT}/http_server/include" 
-    "${PROJECT_ROOT}/http_server/imp"
+    "${PROJECT_ROOT}/web_server/include" 
     "${UNIFEX_INCLUDE_DIR}" 
     )
 link_directories(
@@ -36,7 +35,7 @@ link_directories(
 )
 # Add an executable
 add_executable(${appname} 
-                ${SERVER_SOURCE_DIR}/http_server.cpp 
+                ${SERVER_SOURCE_DIR}/web_server.cpp 
                 )
 
 # link against the boost libraries

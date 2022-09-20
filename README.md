@@ -63,7 +63,7 @@ int main(int argc, char const *argv[]) {
 ```
 Above is an example of broad casting server implementation. This time the server broad cast the message to all connected clients. The above server can be enchanced to write a wide range of application from simple chat service to more complicated queing/messaging protocols such as MQTT or AMQP etc.
 
-Example for HTTP Server
+### Example for HTTP Server
 ```
 #define PORT 8080
 
@@ -159,9 +159,56 @@ auto http_worker = [=](auto buff) {
   };
 
 ``` 
-There is seprate channel for value and error handling. While the handle_request will do the  vallid response generation , the error_to_response function collects all the error scenarios occured and creates an error repsonse. Separating value and error channel will simplify the server implementation and customization.
+There is separate channel for value and error handling. While the handle_request will do the  vallid response generation , the error_to_response function collects all the error scenarios occured and creates an error repsonse. Separating value and error channel will simplify the server implementation and customization.
 
 Also note that the main server logic is not concerned about the scheduling issues. The concern is properly seprated and handled by the choice of scheduler . Above example uses static thread pool to do it. 
+
+### Example Web Server Application
+```
+#include "web_server.hpp"
+#include <filesystem>
+#include <iostream>
+#define PORT 8080
+
+using namespace bingo;
+
+int main(int argc, char const *argv[]) {
+  (void)argc;
+  (void)argv;
+  namespace fs = std::filesystem;
+  std::string doc_root = fs::current_path().c_str();
+  if (argc > 1) {
+    doc_root = argv[1];
+  }
+  web_server server;
+  auto plain_text_handler= [](auto func){
+    return [func=std::move(func)](auto& req,auto& httpfunc){
+      http::response<http::string_body> resp{http::status::ok, req.version()};
+      resp.set(http::field::content_type, "text/plain");
+      resp.body()=func(req,httpfunc);
+      resp.set(http::field::content_length, std::to_string(resp.body().length()));
+      return resp;
+    };
+  };
+  server.add_get_handler("/hello",[](auto& req,auto& httpfunc){
+    http::response<http::string_body> resp{http::status::ok, req.version()};
+    resp.set(http::field::content_type, "text/plain");
+    resp.body()="hello world";
+    resp.set(http::field::content_length, std::to_string(resp.body().length()));
+    return resp;
+
+  });
+
+  server.add_get_handler("/greetings",plain_text_handler([](auto& req,auto& httpfunc){
+    return "Hello " + httpfunc["name"] +"!!!";
+  }));
+  server.start(doc_root,PORT);
+
+  return 0;
+}
+```
+The web server application is a higher level abstraction over the http server. The idea is to mimic Spring boot Web application for java using C++. The web server mimics the  @RequestMapping annotation to map path to function handler but using C++. 
+
 
 ### Example For Client Application
 

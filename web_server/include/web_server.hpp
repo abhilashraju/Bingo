@@ -29,6 +29,15 @@ struct web_server : public http_server<web_server> {
   template <typename FUNC> void add_get_handler(std::string_view path, FUNC&& h) {
     add_handler(http::verb::get,path,(FUNC&&)h);
   }
+  template <typename FUNC> void add_post_handler(std::string_view path, FUNC&& h) {
+    add_handler(http::verb::post,path,(FUNC&&)h);
+  }
+  template <typename FUNC> void add_put_handler(std::string_view path, FUNC&& h) {
+    add_handler(http::verb::put,path,(FUNC&&)h);
+  }
+  template <typename FUNC> void add_delete_handler(std::string_view path, FUNC&& h) {
+    add_handler(http::verb::delete_,path,(FUNC&&)h);
+  }
   auto& handler_for_verb(http::verb v){
     switch(v){
             case http::verb::get:
@@ -36,6 +45,8 @@ struct web_server : public http_server<web_server> {
             case http::verb::put:
             case http::verb::post:
             return post_handlers;
+            case http::verb::delete_:
+            return delete_handlers;
     }
     return get_handlers;
   }
@@ -50,6 +61,7 @@ struct web_server : public http_server<web_server> {
   }
   std::map<std::string, std::unique_ptr<handler_base>> get_handlers;
   std::map<std::string, std::unique_ptr<handler_base>> post_handlers;
+  std::map<std::string, std::unique_ptr<handler_base>> delete_handlers;
 };
 
 } // namespace bingo

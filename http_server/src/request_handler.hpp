@@ -1,5 +1,5 @@
 #pragma once
-#include "http_file_body.hpp"
+#include "http_error.hpp"
 namespace bingo {
 namespace beast = boost::beast; // from <boost/beast.hpp>
 namespace http = beast::http;

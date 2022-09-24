@@ -33,7 +33,7 @@ auto handle_request(auto doc_root) {
     return unifex::just(std::move(stream));
   };
 }
-auto make_error(bingo::status st, std::string_view error) {
+auto make_error(http::status st, std::string_view error) {
   http::response<http::string_body> res{http::status::ok, 11};
   res.set(http::field::server, "bingo:0.0.1");
   res.set(http::field::content_type, "text/plain");
@@ -49,14 +49,14 @@ auto error_to_response() {
     try {
       std::rethrow_exception(expn);
     } catch (const file_not_found &e) {
-      return unifex::just(make_error(bingo::status::not_found,
+      return unifex::just(make_error(http::status::not_found,
                                      std::string(e.what()) + " Not Found"));
     } catch (const std::invalid_argument &e) {
       return unifex::just(
-          make_error(bingo::status::forbidden,
+          make_error(http::status::forbidden,
                      std::string(e.what()) + "Invalid Argument"));
     } catch (const std::exception &e) {
-      return unifex::just(make_error(bingo::status::internal_server_error,
+      return unifex::just(make_error(http::status::internal_server_error,
                                      std::string(e.what()) + " Server Error"));
     }
   };

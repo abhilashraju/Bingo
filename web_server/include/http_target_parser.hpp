@@ -1,8 +1,8 @@
 #pragma once
+#include "regex_range.hpp"
 #include <numeric>
 #include <string>
 #include <vector>
-
 namespace bingo {
 struct http_function {
   struct parameter {
@@ -16,6 +16,7 @@ struct http_function {
   parameters _params;
   const auto &name() const { return _name; }
   const auto &params() const { return _params; }
+  auto &params() { return _params; }
   std::string operator[](const std::string &name) const {
     if (auto iter = std::find_if(begin(_params), end(_params),
                                  [&](auto &p) { return p.name == name; });
@@ -65,5 +66,46 @@ inline http_function parse_function(std::string_view target) {
     return http_function{to_string(target), http_function::parameters{}};
   }
   return http_function{};
+}
+void extract_params_from_path(http_function &func,
+                              const std::string &handlerfuncname,
+                              const std::string &pathfuncname) {
+  auto regex = regex_range{handlerfuncname, std::regex(R"(\{(.*?)\})")};
+  auto sorrounds = regex.get_unmatched();
+  if (sorrounds.size() > 1) {
+    auto names = regex.get_unmatched();
+
+    std::vector<std::pair<int, int>> endindices;
+    std::string functionname = pathfuncname;
+    endindices = std::accumulate(
+        begin(names), end(names), endindices, [&](auto sofar, auto v) {
+          int index = functionname.find(v);
+          functionname = functionname.substr(index + v.length());
+          if (sofar.size() < 1) {
+            sofar.emplace_back(index, index + v.length());
+            return sofar;
+          }
+          index = sofar.back().second + index;
+          sofar.emplace_back(index, index + v.length());
+          return sofar;
+        });
+    std::vector<std::pair<int, int>> range;
+    std::adjacent_difference(
+        begin(endindices), end(endindices), std::back_inserter(range),
+        [](auto v1, auto v2) { return std::make_pair(v2.second, v1.first); });
+    std::vector<std::string> params;
+    std::transform(begin(range) + 1, end(range), std::back_inserter(params),
+                   [&](auto v) {
+                     return pathfuncname.substr(v.first, v.second - v.first);
+                   });
+    auto variablenames = regex.get_matched();
+    if (params.size() == variablenames.size()) {
+      int i = 0;
+      while (i < params.size()) {
+        func.params().emplace_back(variablenames[i], params[i]);
+        i++;
+      }
+    }
+  }
 }
 } // namespace bingo

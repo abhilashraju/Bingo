@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 3.1)
 
-set (appname bingo_web_server)
+set (appname aws_sns_publisher)
 project (${appname})
 
 find_package( Boost )
+find_package(AWSSDK REQUIRED)
 include_directories( ${Boost_INCLUDE_DIRS} )
 
 # set the C++ standard to C++ 17
@@ -37,7 +38,7 @@ link_directories(
 )
 # Add an executable
 add_executable(${appname} 
-                ${SERVER_SOURCE_DIR}/web_server.cpp 
+                ${SERVER_SOURCE_DIR}/aws_service.cpp 
                 )
 
 # link against the boost libraries
@@ -45,4 +46,6 @@ target_link_libraries( ${appname}
     PRIVATE
         pthread
         unifex
+        aws-cpp-sdk-core
+        aws-cpp-sdk-sns
 )

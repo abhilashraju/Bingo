@@ -26,7 +26,7 @@ int main(int argc, char const *argv[]) {
       try {
         std::rethrow_exception(exptr);
       } catch (const std::exception &e) {
-        (handlers(),...);
+        (handlers(), ...);
       }
     };
   };
@@ -37,8 +37,8 @@ int main(int argc, char const *argv[]) {
         return sender |
                unifex::then([](auto data) { std::cout << data.data(); });
       },
-      handle_error([](){std::cout<<"server errror\n";}
-                  ,[&](){context.request_stop();}));
+      handle_error([]() { std::cout << "server errror\n"; },
+                   [&]() { context.request_stop(); }));
 
   async_io io;
   auto user_processor = stream_processor(
@@ -47,8 +47,8 @@ int main(int argc, char const *argv[]) {
         return sender |
                unifex::then([&](auto buff) { send(client.sock, buff); });
       },
-      handle_error([](){std::cout<<"client errror\n";}
-                  ,[&](){context.request_stop();}));
+      handle_error([]() { std::cout << "client errror\n"; },
+                   [&]() { context.request_stop(); }));
 
   auto work = unifex::schedule(net_thread.get_scheduler()) | remote_processor;
 

@@ -4,7 +4,7 @@
 #include "web_server.hpp"
 #include <filesystem>
 #include <iostream>
-#define PORT 8080
+#define PORT 8089
 
 using namespace bingo;
 
@@ -26,7 +26,7 @@ int main(int argc, char const *argv[]) {
       return resp;
     };
   };
-  server.add_get_handler("/hello",[](auto& req,auto& httpfunc){
+  server.add_handler({"/hello",http::verb::get},[](auto& req,auto& httpfunc){
     http::response<http::string_body> resp{http::status::ok, req.version()};
     resp.set(http::field::content_type, "text/plain");
     resp.body()="hello world";
@@ -35,7 +35,7 @@ int main(int argc, char const *argv[]) {
 
   });
 
-  server.add_get_handler("/greetings",plain_text_handler([](auto& req,auto& httpfunc){
+  server.add_handler({"/greetings",http::verb::get},plain_text_handler([](auto& req,auto& httpfunc){
     return "Hello " + httpfunc["name"] +"!!!";
   }));
   server.start(doc_root,PORT);

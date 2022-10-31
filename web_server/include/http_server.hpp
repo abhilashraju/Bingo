@@ -4,9 +4,9 @@
 #include "http_serializer.hpp"
 #include "request_handler.hpp"
 namespace bingo {
-  template<typename Derived>
-struct http_server {
-  Derived& self(){return static_cast<Derived&>(*this);}
+template <typename Derived> struct http_server {
+  std::string doc_root_;
+  Derived &self() { return static_cast<Derived &>(*this); }
   auto validate_request() {
     return [](auto &buff) {
       std::stringstream stream;
@@ -19,12 +19,12 @@ struct http_server {
       return unifex::just(req_);
     };
   }
-  
+
   auto handle_request(auto doc_root) {
-    return [=,doc_root = std::move(doc_root)](auto &req_) {
+    return [=, doc_root = std::move(doc_root)](auto &req_) {
       std::strstream stream;
 
-      auto resp=self().process_request(req_);
+      auto resp = self().process_request(req_);
       beast::error_code ec{};
       write_ostream(stream, resp, ec);
       return unifex::just(std::move(stream));
@@ -63,7 +63,7 @@ struct http_server {
     return [](auto &res) { return unifex::just(std::string(res.str())); };
   }
   void start(const std::string &doc_root, int port) {
-
+    doc_root_ = doc_root;
     auto http_worker = [=](auto buff) {
       return unifex::just(buff) | unifex::let_value(validate_request()) |
              unifex::let_value(handle_request(doc_root)) |
@@ -80,6 +80,7 @@ struct http_server {
         }) |
         unifex::sync_wait();
   }
+  std::string root_directory() const { return doc_root_; }
   void request_stop() { stop_src.request_stop(); }
   unifex::static_thread_pool context;
   unifex::inplace_stop_source stop_src;

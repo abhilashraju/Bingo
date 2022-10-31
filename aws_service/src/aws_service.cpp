@@ -14,59 +14,50 @@
 #include <aws/sns/model/PublishRequest.h>
 #include <aws/sns/model/PublishResult.h>
 
+#include "nlohmann/json.hpp"
 #include "web_server.hpp"
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 
 /**
  * Lists topics - demonstrates how to retrieve a list of Amazon SNS topics.
  */
-struct AwsSdk{
+struct AwsSdk {
   Aws::SDKOptions options{};
-  AwsSdk(){
-    Aws::InitAPI(options);
-  }
-  ~ AwsSdk(){
-    Aws::ShutdownAPI(options);
-  }
+  AwsSdk() { Aws::InitAPI(options); }
+  ~AwsSdk() { Aws::ShutdownAPI(options); }
 };
-class AwsSns
-{
+class AwsSns {
   AwsSdk sdk;
   Aws::SNS::SNSClient sns{};
-  public:
-  AwsSns(){
-      
+
+public:
+  AwsSns() {}
+  bool publish(const std::string &message, const std::string &arn) {
+    return publish(std::string_view{message.data(), message.length()},
+                   std::string_view{arn.data(), arn.length()});
   }
-  bool publish(const std::string& message, const std::string& arn){
-    return publish(std::string_view{message.data(),message.length()},
-            std::string_view{arn.data(),arn.length()});
-  }
-  bool publish(std::string_view message, std::string_view arn) const{
-   
+  bool publish(std::string_view message, std::string_view arn) const {
+
     Aws::SNS::Model::PublishRequest psms_req;
     psms_req.SetMessage(message.data());
     psms_req.SetTopicArn(arn.data());
 
     auto psms_out = sns.Publish(psms_req);
-    if (psms_out.IsSuccess())
-    {
+    if (psms_out.IsSuccess()) {
       std::cout << "Message published successfully " << std::endl;
-    }
-    else
-    {
-      std::cout << "Error while publishing message " << psms_out.GetError().GetMessage()
-        << std::endl;
+    } else {
+      std::cout << "Error while publishing message "
+                << psms_out.GetError().GetMessage() << std::endl;
     }
     return psms_out.IsSuccess();
   }
-  ~AwsSns(){
-    
-  }
+  ~AwsSns() {}
 };
-int main(int argc, char ** argv)
-{
+int main(int argc, char **argv) {
   using namespace bingo;
+  using namespace nlohmann;
   AwsSns sns;
   namespace fs = std::filesystem;
   std::string doc_root = fs::current_path().c_str();
@@ -74,36 +65,50 @@ int main(int argc, char ** argv)
     doc_root = argv[1];
   }
   web_server server;
-  auto plain_text_handler= [](auto func){
-    return [func=std::move(func)](auto& req,auto& httpfunc){
+  auto plain_text_handler = [](auto func) {
+    return [func = std::move(func)](auto &req, auto &httpfunc) {
       http::response<http::string_body> resp{http::status::ok, req.version()};
       resp.set(http::field::content_type, "text/plain");
-      resp.body()=func(req,httpfunc);
-      resp.set(http::field::content_length, std::to_string(resp.body().length()));
+      resp.body() = func(req, httpfunc);
+      resp.set(http::field::content_length,
+               std::to_string(resp.body().length()));
       return resp;
     };
   };
-  server.add_handler({"/health",http::verb::get},[](auto& req,auto& httpfunc){
+  server.add_handler({"/health", http::verb::get}, [](auto &req,
+                                                      auto &httpfunc) {
     http::response<http::string_body> resp{http::status::ok, req.version()};
     resp.set(http::field::content_type, "text/plain");
-    resp.body()="I am healthy";
+    resp.body() = "I am healthy";
     resp.set(http::field::content_length, std::to_string(resp.body().length()));
     return resp;
-
   });
 
-  server.add_handler({"/liveness",http::verb::get},plain_text_handler([](auto& req,auto& httpfunc){
-    return "Hello I am Alive!!!";
-  }));
-  server.add_handler({"/publish",http::verb::post},plain_text_handler([&](auto& req,auto& httpfunc){
-    
-    return sns.publish(req.body(),httpfunc["arn"]) ? "publish success":"publish failed";
-  }));
-  server.add_handler({"/devices/v1/{deviceid}/ondemand/jobManagement/historyStats/request",http::verb::post},plain_text_handler([&](auto& req,auto& httpfunc){
-    
-    return sns.publish(req.body(),httpfunc["arn"]) ? "publish success":"publish failed";
-  }));
-  
-  server.start(doc_root,8088);
+  server.add_handler({"/liveness", http::verb::get},
+                     plain_text_handler([](auto &req, auto &httpfunc) {
+                       return "Hello I am Alive!!!";
+                     }));
+  server.add_handler({"/publish", http::verb::post},
+                     plain_text_handler([&](auto &req, auto &httpfunc) {
+                       return sns.publish(req.body(), httpfunc["arn"])
+                                  ? "publish success"
+                                  : "publish failed";
+                     }));
+  server.add_handler(
+      {"/devices/v1/{deviceid}/ondemand/jobManagement/historyStats/request",
+       http::verb::post},
+      plain_text_handler([&](auto &req, auto &httpfunc) {
+        std::string file_name =
+            server.root_directory() + "/ondemand_template.json";
+        if (std::filesystem::exists(file_name)) {
+          std::ifstream f(file_name);
+          json j = json::parse(f);
+          std::cout << j.dump();
+        }
+        return sns.publish(req.body(), httpfunc["arn"]) ? "publish success"
+                                                        : "publish failed";
+      }));
+
+  server.start(doc_root, 8088);
   return 0;
 }

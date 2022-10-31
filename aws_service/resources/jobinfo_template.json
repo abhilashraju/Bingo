@@ -1,0 +1,63 @@
+{
+    "version": "1.1.0-beta.12",
+    "jobUuid": "fdf1e043-5d30-4d20-8479-f9b49198ad73",
+    "jobInfo": {
+        "creationTime": "2022-08-10T13:45:47Z",
+        "endTime": "2022-08-10T13:45:50Z",
+        "firmwareVersion": "6.11.0.1195+a96bacaf-202208091448",
+        "jobCategory": "print",
+        "jobCompletionState": "failed",
+        "jobDestinations": [
+            "printEngine"
+        ],
+        "jobName": "Mandarina_Soap_600dpi_rescaled.tif",
+        "jobUuid": "fdf1e043-5d30-4d20-8479-f9b49198ad73",
+        "startTime": "2022-08-10T13:45:47Z",
+        "jobSequenceId": 3,
+        "state": "completed",
+        "userName": "guest"
+    },
+    "clientInfo": {
+        "applicationName": "",
+        "applicationVersion": "",
+        "driverInfo": {
+            "driverConfig": "",
+            "driverName": "",
+            "driverVersion": "",
+            "osName": "",
+            "osVersion": ""
+        }
+    },
+    "printInfo": {
+        "copiesCount": 0,
+        "printSettings": {
+            "colorMode": "color",
+            "econoMode": "false",
+            "marginsType": "normal",
+            "mediaRequested": {
+                "mediaId": "self-adhesive-labels",
+                "mediaName": "",
+                "mediaInput": {
+                    "currentMediaSize": "custom",
+                    "currentMediaType": "self-adhesive-labels",
+                    "mediaSourceId": "auto"
+                },
+                "parentMediaId": ""
+            },
+            "plexMode": "simplex",
+            "printQuality": "normal",
+            "printResolution": "e600Dpi",
+            "printModeName": "",
+            "mediaModeStats": {
+                "mediaModeName": "",
+                "mediaModeDescription": "",
+                "curingTemperature": 0,
+                "interPassDelayOffset": 0,
+                "mediaAdvanceFactor": 0,
+                "vacuum": 0
+            },
+            "requestedCopiesCount": 1
+        },
+        "printingEndTime": "2022-08-10T13:45:50Z"
+    }
+}

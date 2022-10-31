@@ -14,6 +14,7 @@
 #include <aws/sns/model/PublishRequest.h>
 #include <aws/sns/model/PublishResult.h>
 
+#include "base64.h"
 #include "nlohmann/json.hpp"
 #include "web_server.hpp"
 #include <filesystem>
@@ -98,15 +99,46 @@ int main(int argc, char **argv) {
       {"/devices/v1/{deviceid}/ondemand/jobManagement/historyStats/request",
        http::verb::post},
       plain_text_handler([&](auto &req, auto &httpfunc) {
-        std::string file_name =
-            server.root_directory() + "/ondemand_template.json";
-        if (std::filesystem::exists(file_name)) {
-          std::ifstream f(file_name);
-          json j = json::parse(f);
-          std::cout << j.dump();
+        try {
+          std::string file_name =
+              server.root_directory() + "/ondemand_template.json";
+          if (std::filesystem::exists(file_name)) {
+
+            json response = json::parse(std::ifstream(file_name));
+            json customdata = json::parse(std::ifstream(
+                server.root_directory() + "/ondemand_custom_data.json"));
+
+            response["eventAttributeValueMap"]["deviceId"]["stringValue"] =
+                httpfunc["deviceid"];
+
+            json parmeters = json::parse(req.body());
+            json statitem = json::parse(std::ifstream(
+                server.root_directory() + "/jobinfo_template.json"));
+            auto index =
+                parmeters["ondemandRequest"]["queryParams"]["ordinalIndex"]
+                    .get<int>();
+            auto limit =
+                parmeters["ondemandRequest"]["queryParams"]["limit"].get<int>();
+            json historystats;
+            while (limit > 0) {
+              limit--;
+              statitem["jobInfo"]["jobSequenceId"] = index + limit;
+              historystats.push_back(statitem);
+            }
+            customdata["ondemandResponse"]["historyStats"] = historystats;
+            customdata["originalRequestEncoded"] =
+                macaron::Base64::Encode(req.body());
+            response["customData"] = macaron::Base64::Encode(customdata.dump());
+            return sns.publish(req.body(), "arn:aws:sns:us-east-1:695500506655:"
+                                           "pie-vpc1-crs-pod1-historystats-sns")
+                       ? "publish success"
+                       : "publish failed";
+          }
+
+        } catch (std::exception &e) {
+          std::cout << e.what();
+          return e.what();
         }
-        return sns.publish(req.body(), httpfunc["arn"]) ? "publish success"
-                                                        : "publish failed";
       }));
 
   server.start(doc_root, 8088);

@@ -221,13 +221,14 @@ inline auto spawn_clients(auto client_agent, auto newconnection, auto do_work) {
             unifex::retry_when([](std::exception_ptr ex) mutable {
               try {
                 std::rethrow_exception(ex);
-              } catch (application_error error) {
+              } catch (application_error &error) {
               }
               return unifex::just();
             }) |
             handle_error([contextptr = context.get()](auto &v) {
               //    contextptr->stop_src.request_stop();
               printf("client closed\n");
+              unifex::sync_wait(contextptr->scope.cleanup());
             });
         return child_work;
       });

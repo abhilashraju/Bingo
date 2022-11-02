@@ -30,7 +30,6 @@ struct AwsSdk {
   ~AwsSdk() { Aws::ShutdownAPI(options); }
 };
 class AwsSns {
-  AwsSdk sdk;
   Aws::SNS::SNSClient sns{};
 
 public:
@@ -59,11 +58,16 @@ public:
 int main(int argc, char **argv) {
   using namespace bingo;
   using namespace nlohmann;
-  AwsSns sns;
+  AwsSdk sdk;
+
   namespace fs = std::filesystem;
   std::string doc_root = fs::current_path().c_str();
   if (argc > 1) {
     doc_root = argv[1];
+  }
+  int port = 8088;
+  if (argc > 2) {
+    port = atoi(argv[2]);
   }
   web_server server;
   auto plain_text_handler = [](auto func) {
@@ -91,6 +95,7 @@ int main(int argc, char **argv) {
                      }));
   server.add_handler({"/publish", http::verb::post},
                      plain_text_handler([&](auto &req, auto &httpfunc) {
+                       AwsSns sns;
                        return sns.publish(req.body(), httpfunc["arn"])
                                   ? "publish success"
                                   : "publish failed";
@@ -129,8 +134,10 @@ int main(int argc, char **argv) {
             customdata["originalRequestEncoded"] =
                 macaron::Base64::Encode(req.body());
             response["customData"] = macaron::Base64::Encode(customdata.dump());
-            return sns.publish(req.body(), "arn:aws:sns:us-east-1:695500506655:"
-                                           "pie-vpc1-crs-pod1-historystats-sns")
+            AwsSns sns;
+            return sns.publish(response.dump(),
+                               "arn:aws:sns:us-east-1:695500506655:"
+                               "pie-vpc1-crs-pod1-historystats-sns")
                        ? "publish success"
                        : "publish failed";
           }
@@ -141,6 +148,6 @@ int main(int argc, char **argv) {
         }
       }));
 
-  server.start(doc_root, 8088);
+  server.start(doc_root, port);
   return 0;
 }

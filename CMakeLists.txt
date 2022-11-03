@@ -29,6 +29,7 @@ add_subdirectory(bingo)
 add_subdirectory(client)
 add_subdirectory(server)
 add_subdirectory(http_server)
-add_subdirectory(web_server)
+
+# add_subdirectory(web_server)
 
 # add_subdirectory(aws_service)

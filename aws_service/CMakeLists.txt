@@ -4,7 +4,7 @@ set(appname aws_sns_publisher)
 project(${appname})
 
 find_package(Boost)
-find_package(AWSSDK REQUIRED COMPONENTS s3 sns)
+find_package(AWSSDK REQUIRED COMPONENTS sns)
 target_include_directories(main PRIVATE aws-cpp-sdk-core)
 target_link_libraries(main PRIVATE aws-cpp-sdk-core)
 include_directories(${Boost_INCLUDE_DIRS})

@@ -5,8 +5,7 @@ project(${appname})
 
 find_package(Boost)
 find_package(AWSSDK REQUIRED COMPONENTS sns)
-target_include_directories(main PRIVATE aws-cpp-sdk-core)
-target_link_libraries(main PRIVATE aws-cpp-sdk-core)
+
 include_directories(${Boost_INCLUDE_DIRS})
 
 # set the C++ standard to C++ 17
@@ -37,7 +36,8 @@ include_directories(
     "${PROJECT_ROOT}/bingo"
     "${PROJECT_ROOT}/web_server/include"
     "${UNIFEX_INCLUDE_DIR}" ,
-    "${NLOHMAN_DIR}"
+    "${NLOHMAN_DIR}" ,
+    aws-cpp-sdk-core
 )
 link_directories(
     "${PROJECT_ROOT}/build/bingo"

@@ -142,6 +142,7 @@ int main(int argc, char **argv) {
                        ? "publish success"
                        : "publish failed";
           }
+          return "Resouce Folder Not Set";
 
         } catch (std::exception &e) {
           std::cout << e.what();

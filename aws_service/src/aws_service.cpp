@@ -55,9 +55,52 @@ public:
   }
   ~AwsSns() {}
 };
+using namespace bingo;
+using namespace nlohmann;
+std::string handle_on_demand_request(auto &req, auto &httpfunc, auto &server) {
+  try {
+    std::cout << server.root_directory() << "\n";
+    std::string file_name = server.root_directory() + "/ondemand_template.json";
+    if (std::filesystem::exists(file_name)) {
+
+      json response = json::parse(std::ifstream(file_name));
+      json customdata = json::parse(std::ifstream(
+          server.root_directory() + "/ondemand_custom_data.json"));
+
+      response["eventAttributeValueMap"]["deviceId"]["stringValue"] =
+          httpfunc["deviceid"];
+
+      json parmeters = json::parse(req.body());
+      json statitem = json::parse(
+          std::ifstream(server.root_directory() + "/jobinfo_template.json"));
+      auto index = parmeters["ondemandRequest"]["queryParams"]["ordinalIndex"]
+                       .get<int>();
+      auto limit =
+          parmeters["ondemandRequest"]["queryParams"]["limit"].get<int>();
+      json historystats;
+      while (limit > 0) {
+        limit--;
+        statitem["jobInfo"]["jobSequenceId"] = index + limit;
+        historystats.push_back(statitem);
+      }
+      customdata["ondemandResponse"]["historyStats"] = historystats;
+      customdata["originalRequestEncoded"] =
+          macaron::Base64::Encode(req.body());
+      response["customData"] = macaron::Base64::Encode(customdata.dump());
+      AwsSns sns;
+      return sns.publish(response.dump(), "arn:aws:sns:us-east-1:695500506655:"
+                                          "pie-vpc1-crs-pod1-historystats-sns")
+                 ? "publish success"
+                 : "publish failed";
+    }
+    return "Resource Directory Not Set";
+  } catch (std::exception &e) {
+    std::cout << e.what();
+    return e.what();
+  }
+}
 int main(int argc, char **argv) {
-  using namespace bingo;
-  using namespace nlohmann;
+
   AwsSdk sdk;
 
   namespace fs = std::filesystem;
@@ -104,50 +147,7 @@ int main(int argc, char **argv) {
       {"/devices/v1/{deviceid}/ondemand/jobManagement/historyStats/request",
        http::verb::post},
       plain_text_handler([&](auto &req, auto &httpfunc) {
-        try {
-          std::cout << server.root_directory() << "\n";
-          std::string file_name =
-              server.root_directory() + "/ondemand_template.json";
-          if (std::filesystem::exists(file_name)) {
-
-            json response = json::parse(std::ifstream(file_name));
-            json customdata = json::parse(std::ifstream(
-                server.root_directory() + "/ondemand_custom_data.json"));
-
-            response["eventAttributeValueMap"]["deviceId"]["stringValue"] =
-                httpfunc["deviceid"];
-
-            json parmeters = json::parse(req.body());
-            json statitem = json::parse(std::ifstream(
-                server.root_directory() + "/jobinfo_template.json"));
-            auto index =
-                parmeters["ondemandRequest"]["queryParams"]["ordinalIndex"]
-                    .get<int>();
-            auto limit =
-                parmeters["ondemandRequest"]["queryParams"]["limit"].get<int>();
-            json historystats;
-            while (limit > 0) {
-              limit--;
-              statitem["jobInfo"]["jobSequenceId"] = index + limit;
-              historystats.push_back(statitem);
-            }
-            customdata["ondemandResponse"]["historyStats"] = historystats;
-            customdata["originalRequestEncoded"] =
-                macaron::Base64::Encode(req.body());
-            response["customData"] = macaron::Base64::Encode(customdata.dump());
-            AwsSns sns;
-            return sns.publish(response.dump(),
-                               "arn:aws:sns:us-east-1:695500506655:"
-                               "pie-vpc1-crs-pod1-historystats-sns")
-                       ? "publish success"
-                       : "publish failed";
-          }
-          return "Resouce Folder Not Set";
-
-        } catch (std::exception &e) {
-          std::cout << e.what();
-          return e.what();
-        }
+        return handle_on_demand_request(req, httpfunc, server);
       }));
 
   server.start(doc_root, port);

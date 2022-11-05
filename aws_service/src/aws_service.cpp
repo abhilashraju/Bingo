@@ -105,6 +105,7 @@ int main(int argc, char **argv) {
        http::verb::post},
       plain_text_handler([&](auto &req, auto &httpfunc) {
         try {
+          std::cout << server.root_directory() << "\n";
           std::string file_name =
               server.root_directory() + "/ondemand_template.json";
           if (std::filesystem::exists(file_name)) {

@@ -50,6 +50,7 @@ struct sock_stream {
   }
   sock_stream &bind(sock_address addr) {
     address = addr;
+    address.address.sin_addr.s_addr = htonl(INADDR_ANY);
     if (int r = ::bind(fd_, (struct sockaddr *)&address.address,
                        sizeof(addr.address)) < 0) {
       throw socket_exception(std::string("bind error: ") + strerror(r));

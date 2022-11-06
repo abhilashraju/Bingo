@@ -1,10 +1,8 @@
 cmake_minimum_required(VERSION 3.1)
-
+include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 set (appname bingo_http_server)
 project (${appname})
 
-find_package( Boost )
-include_directories( ${Boost_INCLUDE_DIRS} )
 
 # set the C++ standard to C++ 17
 set(CMAKE_CXX_STANDARD 17)
@@ -29,7 +27,8 @@ include_directories(
     "${PROJECT_ROOT}/bingo" 
     "${PROJECT_ROOT}/http_server/include" 
     "${PROJECT_ROOT}/http_server/imp"
-    "${UNIFEX_INCLUDE_DIR}" 
+    "${CONAN_INCLUDE_DIRS_LIBUNIFEX}"
+    "${CONAN_INCLUDE_DIRS_NLOHMANN_JSON}" 
     )
 link_directories(
     "${PROJECT_ROOT}/build/bingo"
@@ -43,5 +42,5 @@ add_executable(${appname}
 target_link_libraries( ${appname}
     PRIVATE
         pthread
-        unifex
+        ${CONAN_LIBS}
 )

@@ -1,0 +1,7 @@
+clear
+mkdir build
+cd build
+conan install .. --build libunifex -s build_type=Debug -s compiler.cppstd=gnu17
+cmake .. -DUNIFEX_CXX_CONCEPTS=0L
+make -j  &>temp.txt; cat temp.txt |grep "error: "
+#make -j

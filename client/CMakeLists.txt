@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.1)
-
+include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 project (bingoclient)
 
 
@@ -14,16 +14,15 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     "MinSizeRel" "RelWithDebInfo")
 endif()
 
-add_compile_options(-O0 -Wall -Wextra -pedantic ) 
+add_compile_options(-O0 -Wall -Wextra -pedantic -fconcepts -fPIE) 
 
 SET (PROJECT_ROOT "..")
-SET (UNIFEX_INCLUDE_DIR  "${PROJECT_ROOT}/thirdparty/include")
+
 MESSAGE ("Source path: ${PROJECT_SOURCE_DIR}")
 MESSAGE ("Binary path: ${PROJECT_BINARY_DIR}")
 
 include_directories(
     "${PROJECT_ROOT}/bingo"
-    "${UNIFEX_INCLUDE_DIR}"   
     )
 
 # Add an executable
@@ -35,5 +34,5 @@ add_executable(bingoclient
 target_link_libraries( bingoclient
     PRIVATE
         pthread
-        unifex
+        ${CONAN_LIBS}
 )

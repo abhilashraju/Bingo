@@ -1,5 +1,6 @@
 // Server side C/C++ program to demonstrate unifex based chat server
 // programming
+#include "./config.h"
 #include "bingo.hpp"
 #include "http_parser.hpp"
 #include "http_serializer.hpp"
@@ -22,12 +23,12 @@ auto validate_request() {
   };
 }
 auto handle_request(auto doc_root) {
-  return [doc_root=std::move(doc_root)](auto &&req_) {
+  return [doc_root = std::move(doc_root)](auto &&req_) {
     std::strstream stream;
-    
-    handle_request(doc_root, std::move(req_),[&](auto resp){
+
+    handle_request(doc_root, std::move(req_), [&](auto resp) {
       beast::error_code ec{};
-      write_ostream(stream,resp,ec);
+      write_ostream(stream, resp, ec);
     });
 
     return unifex::just(std::move(stream));
@@ -38,10 +39,10 @@ auto make_error(http::status st, std::string_view error) {
   res.set(http::field::server, "bingo:0.0.1");
   res.set(http::field::content_type, "text/plain");
   res.set(http::field::content_length, std::to_string(error.length()));
-  res.body()=std::string{error.data(),error.length()};
+  res.body() = std::string{error.data(), error.length()};
   std::strstream stream;
   beast::error_code ec{};
-  write_ostream(stream,res,ec);
+  write_ostream(stream, res, ec);
   return std::move(stream);
 }
 auto error_to_response() {
@@ -52,9 +53,8 @@ auto error_to_response() {
       return unifex::just(make_error(http::status::not_found,
                                      std::string(e.what()) + " Not Found"));
     } catch (const std::invalid_argument &e) {
-      return unifex::just(
-          make_error(http::status::forbidden,
-                     std::string(e.what()) + "Invalid Argument"));
+      return unifex::just(make_error(
+          http::status::forbidden, std::string(e.what()) + "Invalid Argument"));
     } catch (const std::exception &e) {
       return unifex::just(make_error(http::status::internal_server_error,
                                      std::string(e.what()) + " Server Error"));
@@ -71,9 +71,9 @@ int main(int argc, char const *argv[]) {
   (void)argc;
   (void)argv;
   namespace fs = std::filesystem;
-  std::string doc_root=fs::current_path().c_str();
-  if(argc >1){
-    doc_root=argv[1];
+  std::string doc_root = fs::current_path().c_str();
+  if (argc > 1) {
+    doc_root = argv[1];
   }
   unifex::static_thread_pool context;
   unifex::inplace_stop_source stop_src;

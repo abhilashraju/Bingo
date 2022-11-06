@@ -1,0 +1,10 @@
+[requires]
+boost/1.80.0
+libunifex/cci.20220430
+nlohmann_json/3.11.2
+
+[options]
+boost:shared=True
+
+[generators]
+cmake

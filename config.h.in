@@ -1,0 +1,1 @@
+#cmakedefine UNIFEX_CXX_CONCEPTS 0L

@@ -105,6 +105,8 @@ RUN apt-get install -y iputils-ping
 RUN apt-get install -y net-tools
 RUN apt install iproute2 -y
 RUN apt install gdb -y
+RUN apt install clang-format -y 
+RUN pip install conan
 
 ###############################################################################
 # Cleanup

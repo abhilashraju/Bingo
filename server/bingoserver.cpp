@@ -1,5 +1,6 @@
 // Server side C/C++ program to demonstrate unifex based chat server
 // programming
+#include "./config.h"
 #include "bingo.hpp"
 #define PORT 8089
 

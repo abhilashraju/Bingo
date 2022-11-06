@@ -2,15 +2,16 @@
 #include <boost/beast.hpp>
 #include "buffer.hpp"
 #include <istream>
-
+namespace beast = boost::beast;  // from <boost/beast.hpp>
+namespace http = boost::beast::http;
 namespace bingo {
-namespace beast = boost::beast; // from <boost/beast.hpp>
-namespace http = beast::http;
+
 template <class Allocator, bool isRequest, class Body>
 void read_istream(
-    std::istream &is, beast::basic_flat_buffer<Allocator> &buffer,
-    beast::http::message<isRequest, Body, beast::http::fields> &msg,
-    beast::error_code &ec) {
+    std::istream& is,
+    beast::basic_flat_buffer<Allocator>& buffer,
+    beast::http::message<isRequest, Body, beast::http::fields>& msg,
+    beast::error_code& ec) {
   // Create the message parser
   //
   // Arguments passed to the parser's constructor are
@@ -29,7 +30,7 @@ void read_istream(
 
       // Now get everything we can from the istream
       buffer.commit(static_cast<std::size_t>(
-          is.readsome(reinterpret_cast<char *>(b.data()), b.size())));
+          is.readsome(reinterpret_cast<char*>(b.data()), b.size())));
     } else if (buffer.size() == 0) {
       // Our buffer is empty and we need more characters,
       // see if we've reached the end of file on the istream
@@ -38,13 +39,13 @@ void read_istream(
         auto const b = buffer.prepare(1024);
 
         // Try to get more from the istream. This might block.
-        is.read(reinterpret_cast<char *>(b.data()), b.size());
+        is.read(reinterpret_cast<char*>(b.data()), b.size());
 
         // If an error occurs on the istream then return it to the caller.
         if (is.fail() && !is.eof()) {
           // We'll just re-use io_error since std::istream has no error_code
           // interface.
-          ec = beast::error::timeout; //(std::errc::io_error);
+          ec = beast::error::timeout;  //(std::errc::io_error);
           return;
         }
 
@@ -76,4 +77,4 @@ void read_istream(
   msg = p.release();
 }
 
-} // namespace bingo
+}  // namespace bingo

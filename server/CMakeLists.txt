@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.1)
-
+include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 project (bingoserver)
 
 
@@ -23,7 +23,8 @@ MESSAGE ("Binary path: ${PROJECT_BINARY_DIR}")
 
 include_directories(
     "${PROJECT_ROOT}/bingo" 
-    "${UNIFEX_INCLUDE_DIR}" 
+    "${CONAN_INCLUDE_DIRS_LIBUNIFEX}"
+    "${CONAN_INCLUDE_DIRS_NLOHMANN_JSON}" 
     )
 link_directories(
     "${PROJECT_ROOT}/build/bingo"
@@ -37,5 +38,5 @@ add_executable(bingoserver
 target_link_libraries( bingoserver
     PRIVATE
         pthread
-        unifex
+        ${CONAN_LIBS}
 )

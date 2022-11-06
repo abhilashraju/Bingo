@@ -9,6 +9,7 @@
    specific language governing permissions and limitations under the License.
 */
 
+#include "./config.h"
 #include <aws/core/Aws.h>
 #include <aws/sns/SNSClient.h>
 #include <aws/sns/model/PublishRequest.h>
@@ -20,7 +21,8 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-
+#include <optional>
+#include <tuple>
 /**
  * Lists topics - demonstrates how to retrieve a list of Amazon SNS topics.
  */
@@ -57,7 +59,58 @@ public:
 };
 using namespace bingo;
 using namespace nlohmann;
+std::optional<std::tuple<json, json, json>>
+parse_resouces(const std::string &path) {
+  std::string file_name = path + "/ondemand_template.json";
+  if (std::filesystem::exists(file_name)) {
+    json response = json::parse(std::ifstream(file_name));
+    json customdata =
+        json::parse(std::ifstream(path + "/ondemand_custom_data.json"));
+    json statitem = json::parse(std::ifstream(path + "/jobinfo_template.json"));
+    return std::make_optional(std::make_tuple(response, customdata, statitem));
+  }
+  return std::nullopt;
+}
 std::string handle_on_demand_request(auto &req, auto &httpfunc, auto &server) {
+  try {
+    std::cout << server.root_directory() << "\n";
+    std::string file_name = server.root_directory() + "/ondemand_template.json";
+    auto resources = parse_resouces(server.root_directory());
+    if (resources) {
+      auto [response, customdata, statitem] = resources.value();
+
+      response["eventAttributeValueMap"]["deviceId"]["stringValue"] =
+          httpfunc["deviceid"];
+
+      json parmeters = json::parse(req.body());
+
+      auto index = parmeters["ondemandRequest"]["queryParams"]["ordinalIndex"]
+                       .get<int>();
+      auto limit =
+          parmeters["ondemandRequest"]["queryParams"]["limit"].get<int>();
+      json historystats;
+      while (limit > 0) {
+        limit--;
+        statitem["jobInfo"]["jobSequenceId"] = index + limit;
+        historystats.push_back(statitem);
+      }
+      customdata["ondemandResponse"]["historyStats"] = historystats;
+      customdata["originalRequestEncoded"] =
+          macaron::Base64::Encode(req.body());
+      response["customData"] = macaron::Base64::Encode(customdata.dump());
+      AwsSns sns;
+      return sns.publish(response.dump(), "arn:aws:sns:us-east-1:695500506655:"
+                                          "pie-vpc1-crs-pod1-historystats-sns")
+                 ? "publish success"
+                 : "publish failed";
+    }
+    return "Resource Directory Not Set";
+  } catch (std::exception &e) {
+    std::cout << e.what();
+    return e.what();
+  }
+}
+std::string publish_stat_item_request(auto &req, auto &httpfunc, auto &server) {
   try {
     std::cout << server.root_directory() << "\n";
     std::string file_name = server.root_directory() + "/ondemand_template.json";

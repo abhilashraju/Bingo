@@ -58,24 +58,18 @@ RUN apt-get update \
     make \
     wget
 
-RUN yes | apt-get install libboost-all-dev
-
-# RUN set -ex \
-# 	&& apt-get install -y libcurl4-openssl-dev libssl-dev uuid-dev zlib1g-dev libpulse-dev\
-# 	&& git clone --recurse-submodules https://github.com/aws/aws-sdk-cpp  \
-# 	&& mkdir sdk_build\
-# 	&& cd sdk_build\
-# 	&& cmake ../aws-sdk-cpp -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH=/usr/local/ -DCMAKE_INSTALL_PREFIX=/usr/local/\
-# 	&& make -j\
-# 	&& make install
-
 RUN set -ex \
     && apt-get install -y libcurl4-openssl-dev libssl-dev uuid-dev zlib1g-dev libpulse-dev
 RUN set -ex\
     && apt-get install -y curl zip unzip tar locate
 RUN set -ex\
     && git clone https://github.com/microsoft/vcpkg
-
+RUN apt-get install -y iputils-ping 
+RUN apt-get install -y net-tools
+RUN apt install iproute2 -y
+RUN apt install gdb -y
+RUN apt install clang-format -y 
+RUN pip install conan
 # RUN set -ex\
 #     && ./vcpkg/bootstrap-vcpkg.sh\
 #     && ./vcpkg/vcpkg install "aws-sdk-cpp[s3, sns,sqs]"
@@ -95,18 +89,9 @@ RUN set -ex \
     && mkdir work \
     && cd work \
     && git clone https://github.com/abhilashraju/Bingo.git \
-    && git clone https://github.com/nlohmann/json.git\
-    && cd Bingo\
-    && mkdir build\
-    && cd build\
-    && cmake .. \
-    && make -j 
-RUN apt-get install -y iputils-ping 
-RUN apt-get install -y net-tools
-RUN apt install iproute2 -y
-RUN apt install gdb -y
-RUN apt install clang-format -y 
-RUN pip install conan
+    && ./configure
+
+
 
 ###############################################################################
 # Cleanup

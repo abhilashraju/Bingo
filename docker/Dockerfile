@@ -89,6 +89,7 @@ RUN set -ex \
     && mkdir work \
     && cd work \
     && git clone https://github.com/abhilashraju/Bingo.git \
+    && cd Bingo\
     && ./configure
 
 

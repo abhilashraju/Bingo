@@ -3,10 +3,8 @@ cmake_minimum_required(VERSION 3.1)
 set(appname aws_sns_publisher)
 project(${appname})
 
-find_package(Boost)
 find_package(AWSSDK REQUIRED COMPONENTS sns)
 
-include_directories(${Boost_INCLUDE_DIRS})
 
 # set the C++ standard to C++ 17
 set(CMAKE_CXX_STANDARD 17)
@@ -24,20 +22,18 @@ endif()
 add_compile_options(-O0 -Wall -Wextra -pedantic)
 
 SET(PROJECT_ROOT "..")
-SET(UNIFEX_INCLUDE_DIR "${PROJECT_ROOT}/thirdparty/include")
 SET(SERVER_SOURCE_DIR "${PROJECT_SOURCE_DIR}/src")
-SET(NLOHMAN_DIR "${PROJECT_ROOT}/../json/single_include/")
 MESSAGE("Source path: ${SERVER_SOURCE_DIR}")
 MESSAGE("Binary path: ${PROJECT_BINARY_DIR}")
 MESSAGE("AWS libraries: ${AWSSDK_LINK_LIBRARIES}")
-MESSAGE("NLOHMAN_DIR: ${NLOHMAN_DIR}")
+
 
 include_directories(
     "${PROJECT_ROOT}/bingo"
     "${PROJECT_ROOT}/web_server/include"
-    "${UNIFEX_INCLUDE_DIR}" ,
-    "${NLOHMAN_DIR}" ,
-    aws-cpp-sdk-core
+    "${CONAN_INCLUDE_DIRS_LIBUNIFEX}"
+    "${CONAN_INCLUDE_DIRS_NLOHMANN_JSON}" 
+     aws-cpp-sdk-core
 )
 link_directories(
     "${PROJECT_ROOT}/build/bingo"
@@ -53,7 +49,7 @@ add_executable(${appname}
 target_link_libraries(${appname}
     PRIVATE
     pthread
-    unifex
+    ${CONAN_LIBS_LIBUNIFEX}
     aws-cpp-sdk-core
     aws-cpp-sdk-sns
 )

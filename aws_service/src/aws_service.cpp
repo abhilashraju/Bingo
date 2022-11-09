@@ -78,7 +78,7 @@ parse_resouces(const std::string& path) {
     json histstatCutomData =
         json::parse(std::ifstream(path + "/ondemand_custom_data.json"));
     json statitem = json::parse(std::ifstream(path + "/jobinfo_template.json"));
-    json histstat = json::parse(std::ifstream(path + "/ histstat_item.json"));
+    json histstat = json::parse(std::ifstream(path + "/histstat_item.json"));
 
     return std::make_optional(
         std::make_tuple(response, histstatCutomData, statitem, histstat));
@@ -141,7 +141,7 @@ std::string publish_stat_item_request(auto& req, auto& httpfunc, auto& server) {
 
       int index = atoi(httpfunc["offset"].data());
       int limit = atoi(httpfunc["count"].data());
-      json parmeters = json::parse(req.body());
+      // json parmeters = json::parse(req.body());
 
       json event = historystatitemCustomdata["events"][0];
       json events;
@@ -154,19 +154,30 @@ std::string publish_stat_item_request(auto& req, auto& httpfunc, auto& server) {
       historystatitemCustomdata["events"] = events;
       response["customData"] =
           macaron::Base64::Encode(historystatitemCustomdata.dump());
+      auto tokenQuery = unifex::just()|
+        bongo::process(
+              bongo::verb::post,
+              std::string("https://pie.authz.wpp.api.hp.com/openid/v1/token?grant_type=client_credentials"),
+              bongo::HttpHeader{
+                  {"Authorization", "Basic eDR3Umt4cFBFWXhUQ1FPQ3JZVXJNOG55NzFWZVcwaDU6U2N2TFY1bjV5NWZRWjVTUVhCbjgzZHM5MGlMWDk5Vk4="}},
+              bongo::ContentType{"application/json"})|
+              unifex::then([](auto v) { return json::parse(v.text);}) |
+              unifex::then([](auto j){ return j["access_token"].value().get<std::string>();})|
+              bongo::upon_error([](auto v) { return v; });
+        auto token = unifex::sync_wait(std::move(tokenQuery)).value();
 
       auto query =
           unifex::just() |
           bongo::process(
-              bongo::verb::get,
-              std::string("https://gorest.co.in/public/v2/users"),
+              bongo::verb::post,
+              std::string("https://stratus-pie.tropos-rnd.com/v2/eventmgtsvc/eventinfos"),
               bongo::HttpHeader{
-                  {"Accept", "*/*"}, {"Accept-Language", "en-US,en;q=0.5"}},
+                  {"Authorization", "Bearer "+token}, {"Accept-Language", "en-US,en;q=0.5"}},
               bongo::ContentType{"application/json"},
               bongo::Body{response.dump()}) |
-          then([](auto v) { return json::parse(v.text); }) |
-          upon_error([](auto v) { return v; });
-      auto t = sync_wait(std::move(query)).value();
+          unifex::then([](auto v) { return json::parse(v.text).dump(); }) |
+          bongo::upon_error([](auto v) { return v; });
+      auto t = unifex::sync_wait(std::move(query)).value();
       return t;
     }
     return "Resource Directory Not Set";
@@ -216,9 +227,7 @@ int main(int argc, char** argv) {
   server.add_handler(
       {"/publish", http::verb::post},
       plain_text_handler([&](auto& req, auto& httpfunc) {
-        AwsSns sns;
-        return sns.publish(req.body(), httpfunc["arn"]) ? "publish success"
-                                                        : "publish failed";
+        return publish_stat_item_request(req,httpfunc,server);
       }));
   server.add_handler(
       {"/devices/v1/{deviceid}/ondemand/jobManagement/historyStats/request",

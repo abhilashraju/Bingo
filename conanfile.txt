@@ -6,5 +6,6 @@ Bongo/01
 
 [options]
 boost:shared=True
+
 [generators]
 cmake

@@ -5,7 +5,6 @@ project(${appname})
 
 find_package(AWSSDK REQUIRED COMPONENTS sns)
 
-
 # set the C++ standard to C++ 17
 set(CMAKE_CXX_STANDARD 17)
 
@@ -27,13 +26,12 @@ MESSAGE("Source path: ${SERVER_SOURCE_DIR}")
 MESSAGE("Binary path: ${PROJECT_BINARY_DIR}")
 MESSAGE("AWS libraries: ${AWSSDK_LINK_LIBRARIES}")
 
-
 include_directories(
     "${PROJECT_ROOT}/bingo"
     "${PROJECT_ROOT}/web_server/include"
     "${CONAN_INCLUDE_DIRS_LIBUNIFEX}"
-    "${CONAN_INCLUDE_DIRS_NLOHMANN_JSON}" 
-     aws-cpp-sdk-core
+    "${CONAN_INCLUDE_DIRS_NLOHMANN_JSON}"
+    aws-cpp-sdk-core
 )
 link_directories(
     "${PROJECT_ROOT}/build/bingo"
@@ -52,4 +50,7 @@ target_link_libraries(${appname}
     ${CONAN_LIBS_LIBUNIFEX}
     aws-cpp-sdk-core
     aws-cpp-sdk-sns
+    curl
+    ssl
+    crypto
 )

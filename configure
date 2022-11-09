@@ -1,4 +1,5 @@
 clear
+rm -rf build
 mkdir build
 cd build
 conan install .. --build libunifex --build missing -s build_type=Debug -s compiler.cppstd=gnu17

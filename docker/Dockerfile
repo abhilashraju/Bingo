@@ -83,10 +83,14 @@ RUN set -ex\
     && make\
     && make install
 
-
-
 RUN set -ex \
     && mkdir work \
+    && cd work \
+    && git clone https://github.com/abhilashraju/Bongo.git \
+    && cd Bongo\
+    && conan create .
+
+RUN set -ex \
     && cd work \
     && git clone https://github.com/abhilashraju/Bingo.git \
     && cd Bingo\

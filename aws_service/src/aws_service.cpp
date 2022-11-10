@@ -202,7 +202,7 @@ std::string publish_stat_item_request(auto& req, auto& httpfunc, auto& server) {
       }
       historystatitemCustomdata["events"] = events;
       response["customData"] =
-          macaron::Base64::Encode("historystatitemCustomdata.dump()");
+          macaron::Base64::Encode(historystatitemCustomdata.dump());
       return make_sns_publish(response.dump());
     }
     return "Resource Directory Not Set";

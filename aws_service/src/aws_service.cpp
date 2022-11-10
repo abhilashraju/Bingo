@@ -127,6 +127,55 @@ std::string handle_on_demand_request(auto& req, auto& httpfunc, auto& server) {
     return e.what();
   }
 }
+
+std::string make_service_request(const std::string& body) {
+  auto tokenQuery = unifex::just() |
+      bongo::process(bongo::verb::post,
+                     std::string("https://pie.authz.wpp.api.hp.com/openid/"
+                                 "v1/token?grant_type=client_credentials"),
+                     bongo::HttpHeader{
+                         {"Authorization",
+                          "Basic "
+                          "eDR3Umt4cFBFWXhUQ1FPQ3JZVXJNOG55NzFWZVcwaDU6U2N2"
+                          "TFY1bjV5NWZRWjVTUVhCbjgzZHM5MGlMWDk5Vk4="}},
+                     bongo::ContentType{"application/json"}) |
+      unifex::then([](auto v) { return json::parse(v.text); }) |
+      unifex::then([](json j) {
+                      return j["access_token"].get<std::string>();
+                    }) |
+      bongo::upon_error([](auto v) { return v; });
+  auto token = unifex::sync_wait(std::move(tokenQuery)).value();
+  std::cout << R"(curl -X POST -H "Authorization: Bearer )" << token << R"(" )"
+            << R"(-H "Content-Type:application/json" )"
+            << R"("https://stratus-pie.tropos-rnd.com/v2/)"
+               R"(eventmgtsvc/eventinfos")"
+            << R"( --data ')" << body << R"(')"
+            << "\n";
+
+  auto query = unifex::just() |
+      bongo::process(
+                   bongo::verb::post,
+                   std::string("https://stratus-pie.tropos-rnd.com/v2/"
+                               "eventmgtsvc/eventinfos"),
+                   bongo::HttpHeader{
+                       {"Authorization", "Bearer " + token},
+                       {"Content-Type", "application/json"}},
+                   //  bongo::ContentType{"application/json"},
+                   bongo::Body{body}) |
+      unifex::then([](auto v) { return json::parse(v.text).dump(); }) |
+      bongo::upon_error([](auto v) { return v; });
+  auto t = unifex::sync_wait(std::move(query)).value();
+  return t;
+}
+std::string make_sns_publish(const std::string& body) {
+  AwsSns sns;
+  return sns.publish(
+             body,
+             "arn:aws:sns:us-east-1:695500506655:"
+             "pie-vpc1-crs-pod1-historystats-sns")
+      ? "publish success"
+      : "publish failed";
+}
 std::string publish_stat_item_request(auto& req, auto& httpfunc, auto& server) {
   try {
     auto resources = parse_resouces(server.root_directory());
@@ -153,45 +202,8 @@ std::string publish_stat_item_request(auto& req, auto& httpfunc, auto& server) {
       }
       historystatitemCustomdata["events"] = events;
       response["customData"] =
-          macaron::Base64::Encode(historystatitemCustomdata.dump());
-      auto tokenQuery = unifex::just() |
-          bongo::process(bongo::verb::post,
-                         std::string("https://pie.authz.wpp.api.hp.com/openid/"
-                                     "v1/token?grant_type=client_credentials"),
-                         bongo::HttpHeader{
-                             {"Authorization",
-                              "Basic "
-                              "eDR3Umt4cFBFWXhUQ1FPQ3JZVXJNOG55NzFWZVcwaDU6U2N2"
-                              "TFY1bjV5NWZRWjVTUVhCbjgzZHM5MGlMWDk5Vk4="}},
-                         bongo::ContentType{"application/json"}) |
-          unifex::then([](auto v) { return json::parse(v.text); }) |
-          unifex::then([](json j) {
-                          return j["access_token"].get<std::string>();
-                        }) |
-          bongo::upon_error([](auto v) { return v; });
-      auto token = unifex::sync_wait(std::move(tokenQuery)).value();
-      auto body = response.dump();
-      std::cout << R"(curl POST -h "Authorization:Bearer Token )" << token
-                << R"(" )"
-                << R"(-h "Content-Type:application/json" )"
-                << R"("https://stratus-pie.tropos-rnd.com/v2/)"
-                   R"(eventmgtsvc/eventinfos")"
-                << R"(--data ")" << "body" << R"(")"
-                << "\n";
-
-      auto query =
-          unifex::just() |
-          bongo::process(
-              bongo::verb::post,
-              std::string("https://stratus-pie.tropos-rnd.com/v2/"
-                          "eventmgtsvc/eventinfos"),
-              bongo::HttpHeader{{"Authorization", "Bearer Token " + token}},
-              bongo::ContentType{"application/json"},
-              bongo::Body{body}) |
-          unifex::then([](auto v) { return json::parse(v.text).dump(); }) |
-          bongo::upon_error([](auto v) { return v; });
-      auto t = unifex::sync_wait(std::move(query)).value();
-      return t;
+          macaron::Base64::Encode("historystatitemCustomdata.dump()");
+      return make_sns_publish(response.dump());
     }
     return "Resource Directory Not Set";
   } catch (std::exception& e) {

@@ -95,6 +95,8 @@ RUN set -ex \
     && git clone https://github.com/abhilashraju/Bingo.git \
     && cd Bingo\
     && ./configure
+RUN set -ex\
+    && echo ./work/Bingo/build/aws_service/aws_sns_publisher /work/Bingo/aws_service/resources
 
 
 

@@ -1,0 +1,112 @@
+{
+"events":
+    [
+        {
+        "dateTime": "2022-05-19T08:16:33.954Z",
+        "eventCategory": "com.hp.cdm.jobManagement.1.resource.historyStatsItem.updated",
+        "eventDetail":
+            {
+            "state":
+                {
+                "reported":
+                    {
+                    "clientInfo":
+                        {
+                        "applicationName": "string",
+                        "applicationVersion": "string",
+                        "driverInfo":
+                            {
+                            "driverConfig": "string",
+                            "driverName": "string",
+                            "driverVersion": "string",
+                            "osName": "string",
+                            "osVersion": "string"
+                            }
+                        },
+                    "faxInfo":
+                        {
+                        "faxInInfo":
+                            {
+                            "stationId": "string",
+                            "totalReceivedImages": 0
+                            },
+                        "faxJobType": "faxReport",
+                        "faxOutInfo":
+                            {
+                            "faxCalls":
+                                [
+                                    {
+                                    "duration": 0,
+                                    "faxResult": "failed",
+                                    "indexNumber": 24
+                                    }
+                                ]
+                            }
+                        },
+                    "finishingInfo":
+                        {
+                        "fold": "true",
+                        "holePunch": "true",
+                        "staple": "true"
+                        },
+                    "jobInfo":
+                        {
+                        "connectionType": "usbDevice",
+                        "creationTime": "2019-08-24T14:15:22Z",
+                        "endTime": "2019-08-24T14:15:22Z",
+                        "firmwareVersion": "string",
+                        "jobCategory": "print",
+                        "jobCompletionDetail": "memoryOut",
+                        "jobCompletionState": "cancelled",
+                        "jobDataSource": "networkIo",
+                        "jobDestinations":
+                            [
+                            "printEngine"
+                            ],
+                        "jobName": "string",
+                        "jobProtocolType": "ipp",
+                        "jobSequenceId": 0,
+                        "jobUuid": "string",
+                        "pauseReason": "none",
+                        "startTime": "2019-08-24T14:15:22Z"
+                        },
+                    "jobUuid": "string",
+                    "scanInfo":
+                        {
+                        "colorMode": "color",
+                        "duplexFormat": "oneSided",
+                        "fileType": "pdf",
+                        "mediaOrientation": "landscape",
+                        "mediaSize": "any",
+                        "plexMode": "simplex",
+                        "scanMediaSourceId": "adf",
+                        "scannedLength": 0,
+                        "scannedPageCount": 0,
+                        "scannedWidth": 0,
+                        "xResolution": "e75Dpi",
+                        "yResolution": "e75Dpi"
+                        },
+                    "version": "1.0.0"
+                    }
+                }
+            },
+        "eventDetailType": "ShadowUpdateEvents",
+        "sequenceNumber": 1,
+        "version": "1.0.0"
+        }
+    ],
+"metadata":
+    {
+    "ackToken": "d25zUHVibGlzaGVyX2Fja1Rva2VuX3BpZQ==",
+    "requestId": "UOB4LWU2"
+    },
+"originator":
+    {
+    "originatorDetail":
+        {
+        "publisherId": "com.hp.cdm.service.jobManagement.version.1.resource.historyStatsItem"
+        },
+    "originatorDetailType": "com.hp.cdm.platform.stratus.iot.version.1"
+    },
+"version": "1.0.0"
+}

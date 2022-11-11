@@ -96,7 +96,9 @@ RUN set -ex \
     && cd Bingo\
     && ./configure
 RUN set -ex\
-    && echo ./work/Bingo/build/aws_service/aws_sns_publisher /work/Bingo/aws_service/resources
+    && echo ./work/Bingo/build/aws_service/aws_sns_publisher /work/Bingo/aws_service/resources > run.sh\
+    && chmod 777 run.sh
+
 
 
 

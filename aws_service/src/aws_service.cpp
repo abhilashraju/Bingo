@@ -68,8 +68,19 @@ public:
   }
   ~AwsSns() {}
 };
+
 using namespace bingo;
 using namespace nlohmann;
+
+std::string make_sns_publish(auto& httpfunc, const std::string& body) {
+  std::string snstopic = httpfunc["topic"];
+  if (snstopic.empty()) {
+    snstopic = "arn:aws:sns:us-east-1:695500506655:"
+               "pie-vpc1-crs-pod1-historystats-sns";
+  }
+  AwsSns sns;
+  return sns.publish(body, snstopic) ? "publish success" : "publish failed";
+}
 std::optional<std::tuple<json, json, json, json>>
 parse_resouces(const std::string& path) {
   std::string file_name = path + "/ondemand_template.json";
@@ -113,13 +124,7 @@ std::string handle_on_demand_request(auto& req, auto& httpfunc, auto& server) {
           macaron::Base64::Encode(req.body());
       response["customData"] =
           macaron::Base64::Encode(histstatCutomData.dump());
-      AwsSns sns;
-      return sns.publish(
-                 response.dump(),
-                 "arn:aws:sns:us-east-1:695500506655:"
-                 "pie-vpc1-crs-pod1-historystats-sns")
-          ? "publish success"
-          : "publish failed";
+      make_sns_publish(httpfunc, response.dump());
     }
     return "Resource Directory Not Set";
   } catch (std::exception& e) {
@@ -167,15 +172,7 @@ std::string make_service_request(const std::string& body) {
   auto t = unifex::sync_wait(std::move(query)).value();
   return t;
 }
-std::string make_sns_publish(const std::string& body) {
-  AwsSns sns;
-  return sns.publish(
-             body,
-             "arn:aws:sns:us-east-1:695500506655:"
-             "pie-vpc1-crs-pod1-historystats-sns")
-      ? "publish success"
-      : "publish failed";
-}
+
 std::string publish_stat_item_request(auto& req, auto& httpfunc, auto& server) {
   try {
     auto resources = parse_resouces(server.root_directory());
@@ -203,7 +200,7 @@ std::string publish_stat_item_request(auto& req, auto& httpfunc, auto& server) {
       historystatitemCustomdata["events"] = events;
       response["customData"] =
           macaron::Base64::Encode(historystatitemCustomdata.dump());
-      return make_sns_publish(response.dump());
+      return make_sns_publish(httpfunc, response.dump());
     }
     return "Resource Directory Not Set";
   } catch (std::exception& e) {

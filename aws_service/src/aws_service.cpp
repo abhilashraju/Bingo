@@ -255,9 +255,8 @@ int main(int argc, char** argv) {
       {"/devices/v1/{deviceid}/ondemand/jobManagement/historyStats/request",
        http::verb::post},
       plain_text_handler([&](auto& req, auto& httpfunc) {
-        std::cout << "Requesting devid=" << httpfunc["deviceid"]
-                  << "\n" return handle_on_demand_request(
-                         req, httpfunc, server);
+        std::cout << "Requesting devid=" << httpfunc["deviceid"] << "\n";
+        return handle_on_demand_request(req, httpfunc, server);
       }));
 
   server.start(doc_root, port);

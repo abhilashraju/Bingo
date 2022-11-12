@@ -1,6 +1,5 @@
 // Client side C/C++ program to demonstrate Sender/Reciever Based Sockets
 // programming
-#include "./config.h"
 #include "async_stream.hpp"
 
 #include "io_context.hpp"

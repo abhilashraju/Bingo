@@ -1,8 +1,12 @@
 clear
+cd bingo
+conan create .
+cd ../examples
 rm -rf build
 mkdir build
 cd build
 conan install .. --build libunifex --build missing -s build_type=Debug -s compiler.cppstd=gnu17
+
 cmake .. -DUNIFEX_CXX_CONCEPTS=0L
 cmake --build . --config Debug
 #make -j  &>temp.txt; cat temp.txt |grep "error: "

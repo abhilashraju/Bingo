@@ -9,7 +9,6 @@
    specific language governing permissions and limitations under the License.
 */
 
-#include "./config.h"
 #include <aws/core/Aws.h>
 #include <aws/sns/SNSClient.h>
 #include <aws/sns/model/PublishRequest.h>

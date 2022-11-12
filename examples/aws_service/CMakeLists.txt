@@ -1,9 +1,7 @@
 cmake_minimum_required(VERSION 3.1)
-
+include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 set(appname aws_sns_publisher)
-project(${appname})
-
-find_package(AWSSDK REQUIRED COMPONENTS sns)
+project(appname)
 
 # set the C++ standard to C++ 17
 set(CMAKE_CXX_STANDARD 17)
@@ -20,27 +18,20 @@ endif()
 
 add_compile_options(-O0 -Wall -Wextra -pedantic)
 
-SET(PROJECT_ROOT "..")
-SET(SERVER_SOURCE_DIR "${PROJECT_SOURCE_DIR}/src")
-MESSAGE("Source path: ${SERVER_SOURCE_DIR}")
-MESSAGE("Binary path: ${PROJECT_BINARY_DIR}")
-MESSAGE("AWS libraries: ${AWSSDK_LINK_LIBRARIES}")
-
 include_directories(
-    "${PROJECT_ROOT}/bingo"
-    "${PROJECT_ROOT}/web_server/include"
-    "${CONAN_INCLUDE_DIRS_LIBUNIFEX}"
-    "${CONAN_INCLUDE_DIRS_NLOHMANN_JSON}"
+    ${CONAN_INCLUDE_DIRS_BOOST}
+    ${CONAN_INCLUDE_DIRS_LIBUNIFEX}
+    ${CONAN_INCLUDE_DIRS_BINGO}
+    ${CONAN_INCLUDE_DIRS_BONGO}
     aws-cpp-sdk-core
 )
 link_directories(
     "${PROJECT_ROOT}/build/bingo"
-    "/usr/local/lib/"
 )
 
 # Add an executable
 add_executable(${appname}
-    ${SERVER_SOURCE_DIR}/aws_service.cpp
+    ${PROJECT_SOURCE_DIR}/src/aws_service.cpp
 )
 
 # link against the boost libraries

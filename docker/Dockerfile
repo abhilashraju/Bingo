@@ -92,12 +92,18 @@ RUN set -ex \
 
 RUN set -ex \
     && cd work \
-    && git clone https://github.com/abhilashraju/Bingo.git \
-    && cd Bingo\
-    && ./configure
+    && git clone https://github.com/abhilashraju/Bingo.git 
+
 RUN set -ex\
-    && echo ./work/Bingo/build/aws_service/aws_sns_publisher /work/Bingo/aws_service/resources > run.sh\
+    && echo ./work/Bingo/examples/build/aws_service/aws_sns_publisher /work/Bingo/examples/aws_service/resources 9003 > run.sh\
     && chmod 777 run.sh
+
+RUN set -ex \
+    && cd work/Bingo \
+    && git pull \
+    && ./configure
+
+CMD ["bash","./run.sh"]
 
 
 

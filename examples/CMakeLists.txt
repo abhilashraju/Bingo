@@ -6,6 +6,7 @@ include_directories(
 )
 link_directories(
     ${CONAN_LIB_DIRS}
+    "/usr/local/lib/"
 )
 add_subdirectory(server)
 

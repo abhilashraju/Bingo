@@ -1,7 +1,7 @@
 // Server side C/C++ program to demonstrate unifex based chat server
 // programming
 
-
+#include <http_error.hpp>
 #include <web_server.hpp>
 
 #include <filesystem>

@@ -17,16 +17,6 @@ endif()
 
 add_compile_options(-O0 -Wall -Wextra -pedantic)
 
-include_directories(
-    ${CONAN_INCLUDE_DIRS_BOOST}
-    ${CONAN_INCLUDE_DIRS_LIBUNIFEX}
-    ${CONAN_INCLUDE_DIRS_BINGO}
-    ${CONAN_INCLUDE_DIRS_BONGO}
-)
-link_directories(
-    "${PROJECT_ROOT}/build/bingo"
-)
-
 # Add an executable
 add_executable(bingoclient
     ${PROJECT_SOURCE_DIR}/bingoclient2.cpp

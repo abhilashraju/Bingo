@@ -83,7 +83,7 @@ int main(int argc, char const* argv[]) {
   unifex::static_thread_pool context;
   unifex::inplace_stop_source stop_src;
 
-  auto http_worker = [=](auto buff) {
+  auto http_worker = [=](auto buff,auto& ) {
     return unifex::just(buff) | unifex::let_value(validate_request()) |
         unifex::let_value(handle_request(doc_root)) |
         unifex::let_error(error_to_response()) |

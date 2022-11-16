@@ -206,16 +206,19 @@ inline auto spawn_clients(auto client_agent, auto newconnection, auto do_work) {
               return read_data(contextptr->stream, contextptr->buff);
             }) |
             unifex::let_value([=, contextptr = context.get()](auto &len) {
-              auto client_work = do_work(contextptr->buff.read_view());
+              auto client_work = do_work(contextptr->buff.read_view(),contextptr->stop_src);
               return client_work;
             }) |
             unifex::let_value([contextptr = context.get()](auto &buff) {
               string_buffer strbuff(buff);
               write_data(contextptr->stream, strbuff);
-              contextptr->buff.consume_all();
+              contextptr->buff.consume_all();   
               return unifex::just();
             }) |
             unifex::repeat_effect_until([contextptr = context.get()]() {
+              if(contextptr->token.stop_requested()){
+                close(contextptr->stream);
+              }
               return contextptr->token.stop_requested();
             }) |
             unifex::retry_when([](std::exception_ptr ex) mutable {

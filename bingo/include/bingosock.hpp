@@ -147,6 +147,10 @@ struct sock_stream {
     set_blocked(newstream);
     return newstream;
   }
+
+  friend auto close(sock_stream &stream) {
+    return ::close(stream.fd_);
+  }
 };
 
 } // namespace bingo

@@ -4,11 +4,12 @@
 #include "http_serializer.hpp"
 #include "request_handler.hpp"
 namespace bingo {
-template <typename Derived> struct http_server {
+template <typename Derived>
+struct http_server {
   std::string doc_root_;
-  Derived &self() { return static_cast<Derived &>(*this); }
+  Derived& self() { return static_cast<Derived&>(*this); }
   auto validate_request() {
-    return [](auto &buff) {
+    return [](auto& buff) {
       std::stringstream stream;
       stream << buff.data();
       beast::flat_buffer buffer_;
@@ -21,12 +22,13 @@ template <typename Derived> struct http_server {
   }
 
   auto handle_request(auto doc_root) {
-    return [=, doc_root = std::move(doc_root)](auto &req_) {
+    return [=, doc_root = std::move(doc_root)](auto& req_) {
       std::strstream stream;
 
       auto resp = self().process_request(req_);
       beast::error_code ec{};
       write_ostream(stream, resp, ec);
+      request_stop();  // close the coonection once request served
       return unifex::just(std::move(stream));
     };
   }
@@ -45,36 +47,42 @@ template <typename Derived> struct http_server {
     return [=](auto expn) {
       try {
         std::rethrow_exception(expn);
-      } catch (const std::invalid_argument &e) {
-        return unifex::just(
-            make_error(http::status::forbidden,
-                       std::string(e.what()) + "Invalid Argument"));
-      } catch (const std::exception &e) {
-        return unifex::just(
-            make_error(http::status::internal_server_error,
-                       std::string(e.what()) + " Server Error"));
+      } catch (const std::invalid_argument& e) {
+        return unifex::just(make_error(
+            http::status::forbidden,
+            std::string(e.what()) + "Invalid Argument"));
+      } catch (const std::exception& e) {
+        return unifex::just(make_error(
+            http::status::internal_server_error,
+            std::string(e.what()) + " Server Error"));
       }
     };
   }
   auto let_stopped() {
-    return []() { return unifex::just(std::string("Stopped")); };
+    return []() {
+      return unifex::just(std::string("Stopped"));
+    };
   }
   auto send_response() {
-    return [](auto &res) { return unifex::just(std::string(res.str())); };
+    return [](auto& res) {
+      return unifex::just(std::string(res.str()));
+    };
   }
-  void start(const std::string &doc_root, int port) {
+  void start(const std::string& doc_root, int port) {
     doc_root_ = doc_root;
     auto http_worker = [=](auto buff) {
       return unifex::just(buff) | unifex::let_value(validate_request()) |
-             unifex::let_value(handle_request(doc_root)) |
-             unifex::let_error(error_to_response()) |
-             unifex::let_value(send_response());
+          unifex::let_value(handle_request(doc_root)) |
+          unifex::let_error(error_to_response()) |
+          unifex::let_value(send_response());
     };
     make_listener("127.0.0.1", port) |
         listen_for_peer_to_peer_connection(
-            context.get_scheduler(), stop_src.get_token(),
-            context.get_scheduler(), std::move(http_worker)) |
-        handle_error([&](std::exception &v) {
+            context.get_scheduler(),
+            stop_src.get_token(),
+            context.get_scheduler(),
+            std::move(http_worker)) |
+        handle_error([&](std::exception& v) {
           stop_src.request_stop();
           printf("%s", v.what());
         }) |
@@ -85,4 +93,4 @@ template <typename Derived> struct http_server {
   unifex::static_thread_pool context;
   unifex::inplace_stop_source stop_src;
 };
-} // namespace bingo
+}  // namespace bingo

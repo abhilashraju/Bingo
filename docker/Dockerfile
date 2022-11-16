@@ -103,7 +103,7 @@ RUN set -ex \
     && git pull \
     && ./configure
 
-CMD ["bash","./run.sh"]
+# CMD ["bash","./run.sh"]
 
 
 

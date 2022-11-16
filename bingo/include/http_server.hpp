@@ -21,14 +21,14 @@ struct http_server {
     };
   }
 
-  auto handle_request(auto doc_root,auto& stopSrc) {
+  auto handle_request(auto doc_root, auto& stopSrc) {
     return [&, doc_root = std::move(doc_root)](auto& req_) {
       std::strstream stream;
 
       auto resp = self().process_request(req_);
-    //  if(!req_.keep_alive()){
-        stopSrc.request_stop();//close connection after serving the request
-    //  }
+      //  if(!req_.keep_alive()){
+      // stopSrc.request_stop();//close connection after serving the request
+      //  }
       beast::error_code ec{};
       write_ostream(stream, resp, ec);
       return unifex::just(std::move(stream));
@@ -72,9 +72,9 @@ struct http_server {
   }
   void start(const std::string& doc_root, int port) {
     doc_root_ = doc_root;
-    auto http_worker = [=](auto buff,auto& stopSrc) {
+    auto http_worker = [=](auto buff, auto& stopSrc) {
       return unifex::just(buff) | unifex::let_value(validate_request()) |
-          unifex::let_value(handle_request(doc_root,stopSrc)) |
+          unifex::let_value(handle_request(doc_root, stopSrc)) |
           unifex::let_error(error_to_response()) |
           unifex::let_value(send_response());
     };

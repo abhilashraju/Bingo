@@ -4,6 +4,7 @@
 #include "http_serializer.hpp"
 #include "request_handler.hpp"
 namespace bingo {
+constexpr int version = 10;
 template <typename Derived>
 struct http_server {
   std::string doc_root_;
@@ -35,7 +36,7 @@ struct http_server {
     };
   }
   auto make_error(http::status st, std::string_view error) {
-    http::response<http::string_body> res{st, 11};
+    http::response<http::string_body> res{st, version};
     res.set(http::field::server, "bingo:0.0.1");
     res.set(http::field::content_type, "text/plain");
     res.set(http::field::content_length, std::to_string(error.length()));

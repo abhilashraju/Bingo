@@ -24,8 +24,22 @@ namespace bingo {
 inline auto make_listener(auto address, auto port) {
   return unifex::just_from([=]() {
     sock_stream* listener = new sock_stream;
-    listener->bind({address, port});
-    listen(*listener);
+
+    int retries = 0;
+    bool connected = false;
+    while (!connected && retries < 5) {
+      try {
+        listener->bind({address, port});
+        listen(*listener);
+        connected = true;
+      } catch (std::exception& e) {
+        retries++;
+        sleep(10);
+      }
+    }
+    if (!connected) {
+      throw std::runtime_error("Not Able to listen . Port may be in use...\n");
+    }
     return listener;
   });
 }

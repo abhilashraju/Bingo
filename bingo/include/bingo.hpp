@@ -209,6 +209,9 @@ inline auto write_data(auto& stream, auto& buff) {
 
 inline auto spawn_clients(auto client_agent, auto newconnection, auto do_work) {
   struct async_context {
+    ~async_context(){
+      unifex::sync_wait(scope.cleanup());
+    }
     sock_stream stream;
     unifex::async_scope scope;
     unifex::inplace_stop_source stop_src;

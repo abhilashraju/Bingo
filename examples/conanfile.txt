@@ -6,7 +6,7 @@ Bongo/01
 Bingo/01
 
 [options]
-boost:shared=True
+boost:header_only=True
 
 
 [generators]

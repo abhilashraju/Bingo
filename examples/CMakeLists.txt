@@ -11,8 +11,8 @@ link_directories(
 add_subdirectory(server)
 
 add_subdirectory(client)
-add_subdirectory(http_server)
+#add_subdirectory(http_server)
 
 #add_subdirectory(web_server)
 
-add_subdirectory(aws_service)
+#add_subdirectory(aws_service)

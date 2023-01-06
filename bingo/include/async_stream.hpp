@@ -54,7 +54,7 @@ template <typename stream> struct async_stream {
 };
 
 struct async_sock : async_stream<async_sock> {
-  sock_stream sock;
+  sock_base sock;
 
   int get_fd() { return sock.fd_; }
 

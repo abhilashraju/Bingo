@@ -3,6 +3,7 @@
 #include "http_parser.hpp"
 #include "http_serializer.hpp"
 #include "request_handler.hpp"
+#include <unifex/single_thread_context.hpp>
 namespace bingo {
 constexpr int version = 10;
 template <typename Derived>
@@ -10,14 +11,11 @@ struct http_server {
   std::string doc_root_;
   Derived& self() { return static_cast<Derived&>(*this); }
   auto validate_request() {
-    return [](auto& buff) {
-      std::stringstream stream;
-      stream << buff.data();
+    return [](auto& stream) {
       beast::flat_buffer buffer_;
-
       beast::http::request<beast::http::string_body> req_;
       beast::error_code ec{};
-      read_istream(stream, buffer_, req_, ec);
+      read_istream(*stream, buffer_, req_, ec);
       return unifex::just(req_);
     };
   }
@@ -73,15 +71,15 @@ struct http_server {
   }
   void start(const std::string& doc_root, int port) {
     doc_root_ = doc_root;
-    auto http_worker = [=](auto buff, auto& stopSrc) {
-      return unifex::just(buff) | unifex::let_value(validate_request()) |
+    auto http_worker = [=](auto stream, auto& stopSrc) {
+      return unifex::just(stream) | unifex::let_value(validate_request()) |
           unifex::let_value(handle_request(doc_root, stopSrc)) |
           unifex::let_error(error_to_response()) |
           unifex::let_value(send_response());
     };
     make_listener("127.0.0.1", port) |
         listen_for_peer_to_peer_connection(
-            context.get_scheduler(),
+            listnercontext.get_scheduler(),
             stop_src.get_token(),
             context.get_scheduler(),
             std::move(http_worker)) |
@@ -94,6 +92,7 @@ struct http_server {
   std::string root_directory() const { return doc_root_; }
   void request_stop() { stop_src.request_stop(); }
   unifex::static_thread_pool context;
+  unifex::single_thread_context listnercontext;
   unifex::inplace_stop_source stop_src;
 };
 }  // namespace bingo

@@ -19,11 +19,12 @@
 #include <unifex/then.hpp>
 #include <unifex/upon_error.hpp>
 #include <variant>
+#include <sstream>
 namespace bingo {
 
 inline auto make_listener(auto address, auto port) {
   return unifex::just_from([=]() {
-    sock_stream* listener = new sock_stream;
+    sock_base* listener = new sock_base;
 
     int retries = 0;
     bool connected = false;
@@ -51,10 +52,10 @@ struct handle_clients {
   handle_clients(Context& C, Handler h) : context(C), handler(std::move(h)) {}
   auto get() const {
     return unifex::then([=](auto l) {
-      std::unique_ptr<sock_stream> listener(l);
+      std::unique_ptr<sock_base> listener(l);
       unifex::async_scope scope;
       ConnectionReactor reactor(
-          [&](sock_stream newconnection) {
+          [&](sock_base newconnection) {
             handler.spawn(scope, context, std::move(newconnection));
           },
           [&](int fd) { return handler.handle_read(fd); });
@@ -85,10 +86,10 @@ struct peer_to_peer_handler {
         context.get_scheduler(), handleConnection(std::move(newconnection))));
   }
   auto handle_read(int fd) const { return false; }
-  auto handleConnection(sock_stream newsock) const {
-    auto newclient = unifex::just(new sock_stream(std::move(newsock)));
+  auto handleConnection(sock_base newsock) const {
+    auto newclient = unifex::just(new sock_base(std::move(newsock)));
     auto responder = unifex::then([=](auto newsock) {
-      std::unique_ptr<sock_stream> sock(newsock);
+      std::unique_ptr<sock_base> sock(newsock);
       try {
         while (true) {
           std::string str;
@@ -117,7 +118,7 @@ struct broadcast_handler {
   Request_Handler request_handler;
   static constexpr bool broad_casting = true;
   struct ClientList {
-    std::vector<std::unique_ptr<sock_stream>> clients;
+    std::vector<std::unique_ptr<sock_base>> clients;
     std::mutex client_mutex;
     void broadcast(auto buf) {
       std::lock_guard<std::mutex> guard(client_mutex);
@@ -125,18 +126,18 @@ struct broadcast_handler {
         send(*c, buf);
       }
     }
-    void add_client(sock_stream* client) {
+    void add_client(sock_base* client) {
       std::lock_guard<std::mutex> guard(client_mutex);
       clients.emplace_back(client);
     }
-    void remove_client(sock_stream* client) {
+    void remove_client(sock_base* client) {
       std::lock_guard<std::mutex> guard(client_mutex);
       clients.erase(
           std::remove_if(std::begin(clients), std::end(clients), [&](auto& e) {
             return e.get() == client;
           }));
     }
-    std::optional<sock_stream*> find(int fd) {
+    std::optional<sock_base*> find(int fd) {
       std::lock_guard<std::mutex> guard(client_mutex);
       auto const& iter =
           std::find_if(cbegin(clients), cend(clients), [=](const auto& sock) {
@@ -157,7 +158,7 @@ struct broadcast_handler {
     : request_handler(std::move(handler)) {}
 
   auto spawn(auto& scope, auto& context, auto newsock) const {
-    getClientList().add_client(new sock_stream(std::move(newsock)));
+    getClientList().add_client(new sock_base(std::move(newsock)));
   }
   auto handle_read(int fd) const {
     auto sock = getClientList().find(fd);
@@ -210,15 +211,15 @@ inline auto write_data(auto& stream, auto& buff) {
 inline auto spawn_clients(auto client_agent, auto newconnection, auto do_work) {
   struct async_context {
     ~async_context(){
-      unifex::sync_wait(scope.cleanup());
+        scope->request_stop();
     }
-    sock_stream stream;
-    unifex::async_scope scope;
+    sock_base stream;
+    unifex::async_scope* scope{new unifex::async_scope()};//need to find a way to fix memleak;
     unifex::inplace_stop_source stop_src;
     std::string v;
     string_buffer buff{v};
     unifex::inplace_stop_token token{stop_src.get_token()};
-    async_context(sock_stream conn) : stream(std::move(conn)) {}
+    async_context(sock_base conn) : stream(std::move(conn)) {}
   };
   auto context = new async_context(std::move(newconnection));
   auto work =
@@ -243,9 +244,10 @@ inline auto spawn_clients(auto client_agent, auto newconnection, auto do_work) {
             unifex::repeat_effect_until([contextptr = context.get()]() {
               if (contextptr->token.stop_requested()) {
                 close(contextptr->stream);
+                throw std::runtime_error("Client Closed");
               }
               return contextptr->token.stop_requested();
-            }) |
+            })|
             unifex::retry_when([](std::exception_ptr ex) mutable {
               try {
                 std::rethrow_exception(ex);
@@ -257,12 +259,73 @@ inline auto spawn_clients(auto client_agent, auto newconnection, auto do_work) {
               //    contextptr->stop_src.request_stop();
               printf("client closed\n");
               close(contextptr->stream);
-              unifex::sync_wait(contextptr->scope.cleanup());
+//              unifex::sync_wait(contextptr->scope.cleanup());
             });
         return child_work;
       });
 
-  context->scope.spawn_on(client_agent, work);
+  context->scope->spawn_on(client_agent, work);
+}
+inline auto spawn_http_clients(auto client_agent, auto newconnection, auto do_work) {
+  struct async_context {
+    ~async_context(){
+        scope->request_stop();
+    }
+    sock_stream<std::stringstream> stream;
+    unifex::async_scope* scope{new unifex::async_scope()};//need to find a way to fix memleak;
+    unifex::inplace_stop_source stop_src;
+    unifex::inplace_stop_token token{stop_src.get_token()};
+    async_context(sock_base conn) : stream(std::move(conn)) {}
+  };
+  auto context = new async_context(std::move(newconnection));
+  auto work =
+      unifex::just_from(
+          [=]() { return std::unique_ptr<async_context>(context); }) |
+      unifex::let_value([=](auto& context) {
+        auto child_work =
+            unifex::just_from([contextptr = context.get()]() {
+              std::string v;
+              string_buffer buff{v};
+              read_data(contextptr->stream.base(),buff);
+              contextptr->stream.buff<<buff.data();
+              buff.consume_all();
+              return &contextptr->stream;
+            }) |
+            unifex::let_value([=, contextptr = context.get()](auto& stream) {
+              auto client_work =
+                  do_work(stream, contextptr->stop_src);
+              return client_work;
+            }) |
+            unifex::let_value([contextptr = context.get()](auto& buff) {
+              string_buffer strbuff(buff);
+              write_data(contextptr->stream.base(), strbuff);
+
+              return unifex::just();
+            }) |
+            unifex::repeat_effect_until([contextptr = context.get()]() {
+              if (contextptr->token.stop_requested()) {
+                close(contextptr->stream.base());
+                throw std::runtime_error("Client Closed");
+              }
+              return contextptr->token.stop_requested();
+            })|
+            unifex::retry_when([](std::exception_ptr ex) mutable {
+              try {
+                std::rethrow_exception(ex);
+              } catch (application_error& error) {
+              }
+              return unifex::just();
+            }) |
+            handle_error([contextptr = context.get()](auto& v) {
+              //    contextptr->stop_src.request_stop();
+              printf("client closed\n");
+              close(contextptr->stream.base());
+//              unifex::sync_wait(contextptr->scope.cleanup());
+            });
+        return child_work;
+      });
+
+  context->scope->spawn_on(client_agent, work);
 }
 inline auto acceptor(auto listener_agent) {
   return unifex::typed_via(listener_agent) | unifex::then([](auto listener) {
@@ -272,7 +335,7 @@ inline auto acceptor(auto listener_agent) {
 }
 inline auto peer_to_peer_sender(auto agent, auto worker) {
   return unifex::then([=, worker = std::move(worker)](auto newconn) {
-    return spawn_clients(agent, std::move(newconn), std::move(worker));
+    return spawn_http_clients(agent, std::move(newconn), std::move(worker));
   });
 }
 

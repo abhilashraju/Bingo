@@ -13,7 +13,7 @@ struct ConnectionReactor {
   ConnectionReactor(NewConnHandler conn_handler, ReadHandler read_handler)
       : new_conn_handler(std::move(conn_handler)),
         read_handler(std::move(read_handler)) {}
-  void run(sock_stream &listener) {
+  void run(sock_base &listener) {
     std::array<int, MAXCLIENTS> clientFd{-1};
     std::fill_n(begin(clientFd), MAXCLIENTS, -1);
     int maxSockFd = listener.fd_;

@@ -6,9 +6,9 @@ namespace beast = boost::beast;  // from <boost/beast.hpp>
 namespace http = boost::beast::http;
 namespace bingo {
 
-template <class Allocator, bool isRequest, class Body>
+template <typename Stream,class Allocator, bool isRequest, class Body>
 void read_istream(
-    std::istream& is,
+    Stream& is,
     beast::basic_flat_buffer<Allocator>& buffer,
     beast::http::message<isRequest, Body, beast::http::fields>& msg,
     beast::error_code& ec) {

@@ -284,11 +284,12 @@ inline auto spawn_http_clients(auto client_agent, auto newconnection, auto do_wo
       unifex::let_value([=](auto& context) {
         auto child_work =
             unifex::just_from([contextptr = context.get()]() {
-              std::string v;
-              string_buffer buff{v};
-              read_data(contextptr->stream.base(),buff);
-              contextptr->stream.buff<<buff.data();
-              buff.consume_all();
+//              std::string v;
+//              string_buffer buff{v};
+//              read_data(contextptr->stream.base(),buff);
+//              contextptr->stream.buff<<buff.data();
+//              buff.consume_all();
+              contextptr->stream.read();
               return &contextptr->stream;
             }) |
             unifex::let_value([=, contextptr = context.get()](auto& stream) {

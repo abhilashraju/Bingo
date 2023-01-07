@@ -110,7 +110,10 @@ struct sock_base {
     set_blocked(new_socket);
     return new_socket;
   }
-
+  template <typename Buffer>
+  int read_all(Buffer& buffer){
+      return read(*this,buffer);
+  }
   template <typename Buffer>
   friend int read(sock_base &stream, Buffer& buff) {
     constexpr int MAXSIZE=1024;
@@ -191,6 +194,16 @@ struct sock_stream{
             gcount_=0;
         }
         return gcount_;
+    }
+    int read(){
+        std::string v;
+        string_buffer data{v};
+        if (gcount_ = base_.read_all(data) > 0){
+            buff<<data.data();
+            data.consume_all();
+            return gcount_;
+        }
+        throw socket_exception("client closed");
     }
     int readsome(char* outbuffer, int length){
         return buff.readsome(outbuffer,length);

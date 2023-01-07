@@ -25,9 +25,9 @@ struct http_server {
       std::strstream stream;
 
       auto resp = self().process_request(req_);
-      //  if(!req_.keep_alive()){
+      if(!req_.keep_alive()){
       stopSrc.request_stop();  // close connection after serving the request
-      //  }
+      }
       beast::error_code ec{};
       write_ostream(stream, resp, ec);
       return unifex::just(std::move(stream));

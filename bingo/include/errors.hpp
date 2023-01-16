@@ -1,5 +1,6 @@
 #pragma once
 #include <exception>
+#include <stdexcept>
 #include <string.h>
 namespace bingo {
 struct socket_exception : std::runtime_error {

@@ -15,10 +15,16 @@ struct web_server : public http_server<web_server> {
                            const request_mapper &second) {
       if (first.method != second.method)
         return false;
+      int split_count{0};
       for (auto str : regex_range{first.path, std::regex(R"(\{(.*?)\})")}
                           .get_unmatched()) {
-        if (second.path.find(str) == std::string::npos)
+        if (second.path.find(str) == std::string::npos){
           return false;
+        }
+        split_count++;
+      }
+      if(split_count==1){//if not decorated path with {some data} syntax, return exact match
+        return first.path==second.path;
       }
       return true;
     }

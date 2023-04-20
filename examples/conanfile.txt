@@ -2,8 +2,8 @@
 boost/1.80.0
 libunifex/cci.20220430
 nlohmann_json/3.11.2
-Bongo/01
-Bingo/01
+bongo/01
+bingo/01
 
 [options]
 boost:header_only=True
